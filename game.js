@@ -14,15 +14,30 @@ let showMobileControls = isMobile;
 const gravity = 0.8;
 const playerWidth = 50;
 const playerHeight = 50;
+let selectedCharacter = 0;
+const characters = [
+    { color1: '#FF6B6B', color2: '#FF4141', name: 'Red Cube' },
+    { color1: '#6B96FF', color2: '#4169FF', name: 'Blue Cube' },
+    { color1: '#7AFF6B', color2: '#41FF45', name: 'Green Cube' },
+    { color1: '#FFD700', color2: '#FFA500', name: 'Gold Cube' }
+];
 const VOID_THRESHOLD = 1000; // Height at which player dies
 let isJumping = false;
 let gameOver = false;
+let gameTimer = 0;
+let timerStarted = false;
+let lastTime = 0;
+let hasShield = false;
+let hasSpeedBoost = false;
+let powerUpTimer = 0;
+let jumpTrailParticles = [];
 let moveLeft = false;
 let moveRight = false;
 let score = 0;
 let highScore = loadScore();
 let cameraX = 0;  // Camera position tracking
 let cameraY = 0;  // Vertical camera position
+let powerUps = []; // Array to store power-ups
 const CAMERA_SMOOTHNESS = 0.1;  // Adjust this value to change how smooth the camera follows (0-1)
 
 // Platforms array and spikes
@@ -37,13 +52,27 @@ function generatePlatforms() {
     const minGap = 100; // Minimum gap between platforms
     const maxGap = 200; // Maximum gap between platforms
 
-    for (let i = 0; i < 10; i++) {
-        let width = Math.random() * 100 + 100; // Width between 100-200px
+    const platformTypes = [
+        { type: 'normal', colors: ['#4CAF50', '#45A049'] },
+        { type: 'ice', colors: ['#87CEEB', '#5FB4EA'] },
+        { type: 'bounce', colors: ['#FF69B4', '#FF1493'] },
+        { type: 'speed', colors: ['#FFD700', '#FFA500'] }
+    ];
 
-        // First platform is always easily accessible
+    for (let i = 0; i < 10; i++) {
+        let width = Math.random() * 100 + 100;
+
+        // First platform is always normal and easily accessible
         if (i === 0) {
             width = 200;
-            platforms.push({ x, y, width, height: 20 });
+            platforms.push({ 
+                x, 
+                y, 
+                width, 
+                height: 20,
+                type: 'normal',
+                colors: platformTypes[0].colors
+            });
         } else {
             // Calculate next platform position based on player's jump capabilities
             let heightDiff = Math.random() * (maxJumpHeight * 0.7); // 70% of max jump height for safety
@@ -53,7 +82,8 @@ function generatePlatforms() {
             let gap = minGap + (heightDiff / maxJumpHeight) * (maxGap - minGap);
             x += gap + width;
 
-            platforms.push({ x, y, width, height: 20 });
+            const randomType = platformTypes[Math.floor(Math.random() * platformTypes.length)];
+            platforms.push({ x, y, width, height: 20, type: randomType.type, colors: randomType.colors });
         }
     }
 }
@@ -84,6 +114,11 @@ function drawScore() {
     ctx.fillStyle = '#000';
     ctx.fillText(`Score: ${score}`, canvas.width / 10, 40);
     ctx.fillText(`High Score: ${highScore}`, canvas.width / 6.5, 70);
+    if (timerStarted) {
+        const seconds = Math.floor(gameTimer / 1000);
+        const milliseconds = Math.floor((gameTimer % 1000) / 10);
+        ctx.fillText(`Time: ${seconds}.${milliseconds.toString().padStart(2, '0')}`, canvas.width / 8, 100);
+    }
 }
 
 function drawBackground() {
@@ -92,6 +127,60 @@ function drawBackground() {
     gradient.addColorStop(1, '#E0F6FF');  // Lighter blue at bottom
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw lava effect
+    const lavaY = VOID_THRESHOLD - cameraY;
+    const lavaGradient = ctx.createLinearGradient(0, lavaY - 100, 0, lavaY + 200);
+    lavaGradient.addColorStop(0, 'rgba(255, 69, 0, 0)');
+    lavaGradient.addColorStop(0.4, 'rgba(255, 69, 0, 0.8)');
+    lavaGradient.addColorStop(1, '#FF4500');
+    ctx.fillStyle = lavaGradient;
+
+    // Animate lava waves
+    const time = Date.now() / 1000;
+    ctx.beginPath();
+    ctx.moveTo(0, lavaY);
+
+    for (let x = 0; x <= canvas.width; x += 30) {
+        const waveHeight = Math.sin(x / 50 + time) * 15;
+        ctx.lineTo(x, lavaY + waveHeight);
+    }
+
+    ctx.lineTo(canvas.width, canvas.height + 100);
+    ctx.lineTo(0, canvas.height + 100);
+    ctx.closePath();
+    ctx.fill();
+
+    // Add lava particles
+    for (let i = 0; i < 5; i++) {
+        const x = (Math.random() * canvas.width);
+        const y = lavaY + Math.random() * 20 - 10;
+        const size = Math.random() * 4 + 2;
+
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Draw sun
+    const sunX = 100 - cameraX * 0.1; // Parallax effect for sun
+    const sunY = 100;
+
+    // Sun glow
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 80);
+    sunGlow.addColorStop(0, 'rgba(255, 255, 200, 0.4)');
+    sunGlow.addColorStop(1, 'rgba(255, 255, 200, 0)');
+    ctx.fillStyle = sunGlow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 80, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun body
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 40, 0, Math.PI * 2);
+    ctx.fill();
 
     // Draw dirt background
     ctx.fillStyle = '#964B00'; // Brown color for
@@ -111,30 +200,60 @@ function drawBackground() {
     let cloudX = -cameraX * 0.3; // Parallax effect
     let cloudY = -cameraY * 0.1; // Vertical parallax effect
 
-    // Generate clouds based on camera position
-    const cloudSpacing = 250;
-    const startCloud = Math.floor(cameraX / cloudSpacing) - 5;
-    const endCloud = startCloud + 15;
+    // Generate clouds based on camera position with more variation
+    const cloudSpacing = 300;
+    const startCloud = Math.floor(cameraX / cloudSpacing) - 8;
+    const endCloud = startCloud + 20;
 
     for (let i = startCloud; i < endCloud; i++) {
-        // Use deterministic random based on cloud index for consistent appearance
-        const randSize = (Math.sin(i * 3.14159) + 1) * 15 + 20;
-        const randHeight = Math.cos(i * 2.71828) * 100 + 150;
-        const randOpacity = (Math.sin(i * 1.41421) + 1) * 0.2 + 0.3;
+        // Use pseudo-random values based on cloud index for consistent yet varied appearance
+        const seed = Math.abs(Math.sin(i * 12.9898) * 43758.5453);
+        const randSize = Math.abs((Math.sin(seed) + 1.5) * 15 + Math.cos(i) * 10);
+        const randHeight = Math.cos(seed * 2.71828) * 150 + 200;
+        const randOpacity = (Math.sin(seed * 1.41421) + 1) * 0.2 + 0.2;
+        const randOffset = Math.sin(seed * 3.14159) * 50;
 
         ctx.fillStyle = `rgba(255, 255, 255, ${randOpacity})`;
         ctx.beginPath();
-        ctx.arc(cloudX + i * cloudSpacing, randHeight + cloudY, randSize, 0, Math.PI * 2);
-        ctx.arc(cloudX + 30 + i * cloudSpacing, randHeight + cloudY, randSize * 0.8, 0, Math.PI * 2);
-        ctx.arc(cloudX + 60 + i * cloudSpacing, randHeight + cloudY, randSize * 0.9, 0, Math.PI * 2);
+        ctx.arc(cloudX + i * cloudSpacing + randOffset, randHeight + cloudY, randSize, 0, Math.PI * 2);
+        ctx.arc(cloudX + 40 + i * cloudSpacing + randOffset, randHeight + cloudY - 10, randSize * 0.9, 0, Math.PI * 2);
+        ctx.arc(cloudX + 80 + i * cloudSpacing + randOffset, randHeight + cloudY, randSize * 0.8, 0, Math.PI * 2);
         ctx.fill();
     }
 }
 
 // Function to draw the player with rounded corners and gradient
 function drawPlayer() {
+    // Draw jump trail
+    if (player.dy < 0) {
+        jumpTrailParticles.push({
+            x: player.x + player.width/2,
+            y: player.y + player.height,
+            alpha: 1
+        });
+    }
+
+    jumpTrailParticles.forEach((particle, index) => {
+        particle.alpha -= 0.05;
+        if (particle.alpha <= 0) {
+            jumpTrailParticles.splice(index, 1);
+        } else {
+            ctx.fillStyle = `rgba(255, 255, 255, ${particle.alpha})`;
+            ctx.fillRect(particle.x - cameraX, particle.y - cameraY, 4, 4);
+        }
+    });
+
     ctx.save();
     ctx.translate(player.x - cameraX, player.y - cameraY);
+
+    // Draw shield effect
+    if (hasShield) {
+        ctx.beginPath();
+        ctx.arc(player.width/2, player.height/2, player.width * 0.8, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 100, 255, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
 
     // Add smooth stretch effect when jumping
     const targetStretchHeight = player.dy < 0 ? player.height * 1.2 :
@@ -156,10 +275,10 @@ function drawPlayer() {
     let stretchWidth = player.currentWidth;
     let stretchHeight = player.currentHeight;
 
-    // Create gradient for player
+    // Create gradient for player using selected character colors
     const gradient = ctx.createLinearGradient(0, 0, 0, stretchHeight);
-    gradient.addColorStop(0, '#FF6B6B');
-    gradient.addColorStop(1, '#FF4141');
+    gradient.addColorStop(0, characters[selectedCharacter].color1);
+    gradient.addColorStop(1, characters[selectedCharacter].color2);
 
     // Draw rounded rectangle with stretch effect
     ctx.beginPath();
@@ -196,10 +315,16 @@ function drawPlatforms() {
         ctx.save();
         ctx.translate(platform.x - cameraX, platform.y - cameraY);
 
+        // Draw platform shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.beginPath();
+        ctx.roundRect(5, 5, platform.width, platform.height, 8);
+        ctx.fill();
+
         // Create gradient for platform top
         const gradient = ctx.createLinearGradient(0, 0, 0, platform.height);
-        gradient.addColorStop(0, '#4CAF50');
-        gradient.addColorStop(1, '#45A049');
+        gradient.addColorStop(0, platform.colors[0]);
+        gradient.addColorStop(1, platform.colors[1]);
 
         // Draw platform top with rounded corners
         ctx.beginPath();
@@ -287,6 +412,8 @@ function resetGame() {
     platforms = [];
     generatePlatforms();
     score = 0;
+    gameTimer = 0;
+    timerStarted = false;
     spikes = [];
     player.x = platforms[0].x;
     player.y = platforms[0].y - playerHeight;
@@ -300,6 +427,32 @@ function resetGame() {
 // Function to detect collision with platforms
 function detectCollision() {
     let onGround = false;
+    let touchingPlatform = false;
+
+    // Handle platform effects
+    platforms.forEach(platform => {
+        if (player.x + player.width > platform.x &&
+            player.x < platform.x + platform.width &&
+            player.y + player.height <= platform.y + player.dy &&
+            player.y + player.height + player.dy >= platform.y) {
+
+            switch(platform.type) {
+                case 'ice':
+                    player.friction = 0.99; // More slippery
+                    break;
+                case 'bounce':
+                    player.dy = -20; // Extra bounce
+                    break;
+                case 'speed':
+                    player.maxSpeed = 12; // Temporary speed boost
+                    setTimeout(() => player.maxSpeed = 8, 1000);
+                    break;
+                default: // normal platform
+                    player.friction = 0.85; // Reset friction
+                    break;
+            }
+        }
+    });
 
     // Check spike collisions
     spikes.forEach(spike => {
@@ -323,12 +476,16 @@ function detectCollision() {
             player.y = platform.y - player.height;
             player.dy = 0;
             onGround = true;
+            touchingPlatform = true;
         }
     });
 
     if (onGround) {
         isJumping = false;
-        player.jumpsLeft = 2; // Set to 2 for double jump
+        player.jumpsLeft = 2; // Reset jumps when touching ground
+    } else if (!touchingPlatform && player.jumpsLeft === 2) {
+        // If in air and haven't used any jumps yet, set to 1 jump left
+        player.jumpsLeft = 1;
     }
 }
 
@@ -372,7 +529,7 @@ function updatePlatforms() {
         let width = Math.random() * 100 + 100;
 
         // Calculate next platform position based on last platform
-        let heightDiff = Math.random() * (maxJumpHeight * 0.7);
+        const heightDiff = Math.abs(Math.random() * (maxJumpHeight * 0.7));
         let newY = Math.max(100, lastPlatform.y + (Math.random() < 0.5 ? -heightDiff : heightDiff * 0.3));
 
         // Ensure the height difference isn't too extreme
@@ -384,11 +541,28 @@ function updatePlatforms() {
         let gap = minGap + (Math.abs(newY - lastPlatform.y) / maxJumpHeight) * (maxGap - minGap);
         let x = lastPlatform.x + gap + lastPlatform.width;
 
-        platforms.push({ x, y: newY, width, height: 20 });
+        const platformTypes = [
+            { type: 'normal', colors: ['#4CAF50', '#45A049'] },
+            { type: 'ice', colors: ['#87CEEB', '#5FB4EA'] },
+            { type: 'bounce', colors: ['#FF69B4', '#FF1493'] },
+            { type: 'speed', colors: ['#FFD700', '#FFA500'] }
+        ];
+        const randomType = platformTypes[Math.floor(Math.random() * platformTypes.length)];
 
-        // Add spikes with 20% chance, but only if platform is far enough from player
+        platforms.push({ x, y: newY, width, height: 20, type: randomType.type, colors: randomType.colors });
+
+        // Add spikes and power-ups with chance, but only if platform is far enough from player
         const minSafeDistance = 500; // Minimum distance from player to spawn spikes
         if (Math.random() < 0.2 && (x - player.x) > minSafeDistance) {
+            // Spawn power-ups with 30% chance
+            if (Math.random() < 0.3) {
+                const type = Math.random() < 0.5 ? 'shield' : 'speed';
+                powerUps.push({
+                    x: x + (width / 2),
+                    y: newY - 30,
+                    type: type
+                });
+            }
             // Place a single spike in the middle of the platform
             spikes.push({
                 x: x + (width / 2) - 15, // Center the spike on the platform
@@ -435,10 +609,13 @@ function drawSpikes() {
 document.addEventListener('keydown', (e) => {
     if (e.key === "ArrowLeft" || e.key === "a") {
         moveLeft = true;
+        timerStarted = true;
     } else if (e.key === "ArrowRight" || e.key === "d") {
         moveRight = true;
+        timerStarted = true;
     } else if (e.key === " " || e.key === "ArrowUp" || e.key === "w") {
         jump();
+        timerStarted = true;
     }
 });
 
@@ -503,20 +680,101 @@ function drawHomeScreen() {
     ctx.fillStyle = 'white';
     ctx.font = '40px "Press Start 2P"';
     ctx.textAlign = 'center';
-    ctx.fillText('Platform Runner', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.fillText('Platform Runner', canvas.width / 2, canvas.height / 2 - 150);
+
+    // Draw character selection text
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Choose Your Character', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.font = '16px "Press Start 2P"';
+    ctx.fillText('Press ENTER to continue', canvas.width / 2, canvas.height / 2 - 20);
+
+    // Draw character options
+    const characterSpacing = 120;
+    const startX = canvas.width / 2 - (characters.length * characterSpacing) / 2;
+
+    characters.forEach((char, index) => {
+        const x = startX + index * characterSpacing;
+        const y = canvas.height / 2 + 30;
+
+        // Draw character box
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(x - 35, y - 35, 70, 70);
+
+        // Draw selection highlight with animation
+        if (index === selectedCharacter) {
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 4;
+            const pulseSize = Math.sin(Date.now() / 200) * 5; // Pulsing animation
+            ctx.strokeRect(x - 40 - pulseSize, y - 40 - pulseSize, 80 + pulseSize * 2, 80 + pulseSize * 2);
+
+            // Add glow effect
+            ctx.shadowColor = '#FFF';
+            ctx.shadowBlur = 20;
+        }
+
+        // Draw character
+        ctx.save();
+        const gradient = ctx.createLinearGradient(x - 25, y - 25, x - 25, y + 25);
+        gradient.addColorStop(0, char.color1);
+        gradient.addColorStop(1, char.color2);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - 25, y - 25, 50, 50);
+
+        // Draw eyes
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(x - 10, y - 10, 5, 0, Math.PI * 2);
+        ctx.arc(x + 10, y - 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw smile
+        ctx.beginPath();
+        ctx.arc(x, y + 5, 15, 0, Math.PI);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw character name
+        ctx.font = '12px "Press Start 2P"';
+        ctx.fillStyle = 'white';
+        ctx.fillText(char.name, x, y + 60);
+
+        // Reset shadow
+        ctx.shadowBlur = 0;
+    });
+
+    // Draw start button
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    const buttonX = canvas.width / 2 - buttonWidth / 2;
+    const buttonY = canvas.height - 120;
+
+    // Pulse animation for the start button
+    const pulseSize = Math.sin(Date.now() / 200) * 2;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(buttonX - pulseSize, buttonY - pulseSize, 
+                buttonWidth + pulseSize * 2, buttonHeight + pulseSize * 2);
 
     ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Click to Start', canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillStyle = 'white';
+    ctx.fillText('START', canvas.width / 2, buttonY + 33);
+
+    // Add glow effect to the button text
+    ctx.shadowColor = '#FFF';
+    ctx.shadowBlur = 10;
+    ctx.fillText('START', canvas.width / 2, buttonY + 33);
+    ctx.shadowBlur = 0;
 
     if (isMobile) {
         ctx.font = '16px "Press Start 2P"';
-        ctx.fillText('Mobile Controls: ' + (showMobileControls ? 'ON' : 'OFF'), canvas.width / 2, canvas.height / 2 + 100);
-        ctx.fillText('Tap here to toggle', canvas.width / 2, canvas.height / 2 + 130);
+        ctx.fillText('Mobile Controls: ' + (showMobileControls ? 'ON' : 'OFF'), canvas.width / 2, canvas.height - 60);
+        ctx.fillText('Tap here to toggle', canvas.width / 2, canvas.height - 30);
     }
 }
 
-function drawMobileControls() {
-    if (!showMobileControls) return;
+function drawMobileControls() {if (!showMobileControls) return;
 
     const buttonSize = 80;
     const cornerRadius = 15;
@@ -545,7 +803,7 @@ function drawMobileControls() {
     ctx.fillStyle = '#333';
     ctx.fillText('→', 145, canvas.height - 75);
 
-    // Jump button (larger, on right side like Minecraft)
+    // Jump button (larger, on right side likeMinecraft)
     ctx.beginPath();
     ctx.roundRect(canvas.width - 100, canvas.height - 120, buttonSize, buttonSize, cornerRadius);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -565,9 +823,75 @@ function drawMobileControls() {
     ctx.globalAlpha = 1;
 }
 
-function update() {
+function drawPowerUps() {
+    powerUps.forEach((powerUp, index) => {
+        const screenX = powerUp.x - cameraX;
+        const screenY = powerUp.y - cameraY;
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+
+        if (powerUp.type === 'shield') {
+            ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
+        } else {
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.7)';
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.abs(15), 0, Math.PI * 2);
+        ctx.fill();
+
+        // Collection detection
+        if (Math.abs(player.x + player.width/2 - powerUp.x) < 30 &&
+            Math.abs(player.y + player.height/2 - powerUp.y) < 30) {
+            if (powerUp.type === 'shield') {
+                hasShield = true;
+                powerUpTimer = 300;
+            } else {
+                hasSpeedBoost = true;
+                player.maxSpeed = 12;
+                powerUpTimer = 300;
+            }
+            powerUps.splice(index, 1);
+            playSound(powerUp.type);
+        }
+
+        ctx.restore();
+    });
+}
+
+function playSound(type) {
+    const audio = new Audio();
+    audio.volume = 0.2;
+    if (type === 'shield') {
+        audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+    } else {
+        audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+    }
+    audio.play();
+}
+
+function update(currentTime) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
     drawBackground();
+
+    if (gameState === 'playing' && timerStarted) {
+        if (lastTime) {
+            gameTimer += currentTime - lastTime;
+        }
+        lastTime = currentTime;
+    } else {
+        lastTime = currentTime;
+    }
+
+    if (powerUpTimer > 0) {
+        powerUpTimer--;
+        if (powerUpTimer === 0) {
+            hasShield = false;
+            hasSpeedBoost = false;
+            player.maxSpeed = 8;
+        }
+    }
 
     if (gameState === 'home') {
         drawHomeScreen();
@@ -592,9 +916,35 @@ function update() {
 }
 
 // Event listeners for mobile controls
-canvas.addEventListener('click', () => {
+canvas.addEventListener('click', (e) => {
     if (gameState === 'home') {
-        gameState = 'playing';
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check if start button was clicked
+        const buttonWidth = 200;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const buttonY = canvas.height - 120;
+
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            gameState = 'playing';
+            timerStarted = true;
+        }
+
+        // Check if character was clicked
+        const characterSpacing = 120;
+        const startX = canvas.width / 2 - (characters.length * characterSpacing) / 2;
+        characters.forEach((_, index) => {
+            const charX = startX + index * characterSpacing;
+            const charY = canvas.height / 2 + 30;
+            if (x >= charX - 35 && x <= charX + 35 &&
+                y >= charY - 35 && y <= charY + 35) {
+                selectedCharacter = index;
+            }
+        });
     }
 });
 
@@ -678,9 +1028,20 @@ canvas.addEventListener('touchend', (e) => {
 
 // Keyboard controls
 document.addEventListener('keydown', (e) => {
-    if (gameState === 'home' && e.key === ' ') {
-        gameState = 'playing';
-        return;
+    if (gameState === 'home') {
+        if (e.key === ' ' || e.key === 'Enter') {
+            gameState = 'playing';
+            timerStarted = true;
+            return;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'a') {
+            selectedCharacter = (selectedCharacter - 1 + characters.length) % characters.length;
+            return;
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd') {
+            selectedCharacter = (selectedCharacter + 1) % characters.length;
+            return;
+        }
     }
 
     if (e.key === 'Escape') {
