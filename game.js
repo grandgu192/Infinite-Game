@@ -350,7 +350,7 @@ function jump() {
     if (player.jumpsLeft > 0) {
         createParticles();
         isJumping = true;
-        player.jumpsLeft --;
+        player.jumpsLeft-- ;
 
         // Adjust jump force based on which jump it is
         if (player.jumpsLeft === 3) {
