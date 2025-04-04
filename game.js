@@ -75,7 +75,7 @@ let player = {
     acceleration: 0.5,
     friction: 0.85,
     maxSpeed: 8,
-    jumpsLeft: 10
+    jumpsLeft: 3
 };
 
 // Function to draw the background with gradient
@@ -350,7 +350,7 @@ function jump() {
     if (player.jumpsLeft > 0) {
         createParticles();
         isJumping = true;
-        player.jumpsLeft - 1;
+        player.jumpsLeft --;
 
         // Adjust jump force based on which jump it is
         if (player.jumpsLeft === 3) {
