@@ -75,7 +75,7 @@ let player = {
     acceleration: 0.5,
     friction: 0.85,
     maxSpeed: 8,
-    jumpsLeft: 3
+    jumpsLeft: 2
 };
 
 // Function to draw the background with gradient
@@ -328,7 +328,7 @@ function detectCollision() {
 
     if (onGround) {
         isJumping = false;
-        player.jumpsLeft = 3; // Updated to quadruple jump count
+        player.jumpsLeft = 2; // Set to 2 for double jump
     }
 }
 
@@ -350,17 +350,13 @@ function jump() {
     if (player.jumpsLeft > 0) {
         createParticles();
         isJumping = true;
-        player.jumpsLeft-- ;
+        player.jumpsLeft--;
 
         // Adjust jump force based on which jump it is
-        if (player.jumpsLeft === 3) {
-            player.dy = -16;  // First jump strongest
-        } else if (player.jumpsLeft === 2) {
-            player.dy = -14;  // Second jump
-        } else if (player.jumpsLeft === 1) {
-            player.dy = -12;  // Third jump
+        if (player.jumpsLeft === 1) {
+            player.dy = -16;  // First jump stronger
         } else if (player.jumpsLeft === 0) {
-            player.dy = -10;  // Fourth jump
+            player.dy = -14;  // Second jump weaker
         }
     }
 }
