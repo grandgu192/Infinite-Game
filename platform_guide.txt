@@ -1,0 +1,26 @@
+
+Platform Types Guide
+
+1. Normal Platform (Green)
+   - Regular platform with standard friction
+   - Basic jumping and movement physics
+
+2. Ice Platform (Light Blue)
+   - Slippery surface with reduced friction
+   - Makes it harder to stop or change direction
+   - Requires more careful movement control
+
+3. Bounce Platform (Pink)
+   - Provides an extra high bounce when landed on
+   - Great for reaching higher places
+   - Automatically boosts jump height
+
+4. Speed Platform (Yellow/Gold)
+   - Temporarily increases player's maximum speed
+   - Speed boost lasts for 1 second
+   - Perfect for crossing large gaps
+
+5. Breaking Platform (Grey)
+   - Breaks shortly after landing on it
+   - Very rare (5% spawn chance)
+   - Requires quick thinking and movement
