@@ -54,9 +54,9 @@ const ctx = canvas.getContext('2d');
 let canvasWidth, canvasHeight;
 
 // Audio elements
-const bgMusic = document.getElementById('bgMusic');
-const hitSound = document.getElementById('hitSound');
-const successSound = document.getElementById('successSound');
+let bgMusic = new Audio();
+let hitSound = new Audio();
+let successSound = new Audio();
 let isMuted = false;
 
 // Key states
