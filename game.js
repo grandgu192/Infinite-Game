@@ -30,11 +30,15 @@ const gravity = 0.8;
 const playerWidth = 50;
 const playerHeight = 50;
 let selectedCharacter = 0;
+// Generate 100 icons with various colors, gradients, and patterns
 const characters = [
+    // Default unlocked characters (first 4 remain free)
     { color1: '#FF6B6B', color2: '#FF4141', name: 'Red Cube', unlocked: true, price: 0, inShop: false },
     { color1: '#7AFF6B', color2: '#41FF45', name: 'Green Cube', unlocked: true, price: 0, inShop: false },
     { color1: '#6B96FF', color2: '#4169FF', name: 'Blue Cube', unlocked: true, price: 0, inShop: false },
     { color1: '#FFD700', color2: '#FFA500', name: 'Gold Cube', unlocked: true, price: 0, inShop: false },
+    
+    // Original premium characters
     { color1: '#8A2BE2', color2: '#4B0082', name: 'Galaxy Cube', unlocked: false, price: 50, inShop: true,
       gradient: (ctx, x, y, w, h) => {
         const g = ctx.createLinearGradient(x, y, x, y + h);
@@ -43,7 +47,7 @@ const characters = [
         return g;
       }
     },
-    { color1: '#FDB813', color2: '#F7931E', name: 'Sun Cube', unlocked: false, price: 75,
+    { color1: '#FDB813', color2: '#F7931E', name: 'Sun Cube', unlocked: false, price: 75, inShop: true,
       gradient: (ctx, x, y, w, h) => {
         const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
         g.addColorStop(0, '#FDB813');
@@ -51,7 +55,7 @@ const characters = [
         return g;
       }
     },
-    { color1: '#00FFFF', color2: '#0000FF', name: 'Water Cube', unlocked: false, price: 100,
+    { color1: '#00FFFF', color2: '#0000FF', name: 'Water Cube', unlocked: false, price: 100, inShop: true,
       gradient: (ctx, x, y, w, h) => {
         const g = ctx.createLinearGradient(x, y, x, y + h);
         g.addColorStop(0, '#00FFFF');
@@ -60,7 +64,7 @@ const characters = [
         return g;
       }
     },
-    { color1: '#FF4500', color2: '#8B0000', name: 'Lava Cube', unlocked: false, price: 150,
+    { color1: '#FF4500', color2: '#8B0000', name: 'Lava Cube', unlocked: false, price: 150, inShop: true,
       gradient: (ctx, x, y, w, h) => {
         const g = ctx.createLinearGradient(x, y, x, y + h);
         g.addColorStop(0, '#FF4500');
@@ -69,7 +73,7 @@ const characters = [
         return g;
       }
     },
-    { color1: '#9370DB', color2: '#6A5ACD', name: 'Magic Cube', unlocked: false, price: 200,
+    { color1: '#9370DB', color2: '#6A5ACD', name: 'Magic Cube', unlocked: false, price: 200, inShop: true,
       gradient: (ctx, x, y, w, h) => {
         const g = ctx.createLinearGradient(x, y, x, y + h);
         g.addColorStop(0, '#9370DB');
@@ -77,6 +81,1290 @@ const characters = [
         g.addColorStop(1, '#6A5ACD');
         return g;
       }
+    },
+    
+    // Additional 91 icons with unique designs and patterns
+    // Rainbow Series
+    { color1: '#FF0000', color2: '#FFA500', name: 'Rainbow 1', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FF0000');
+        g.addColorStop(0.2, '#FFA500');
+        g.addColorStop(0.4, '#FFFF00');
+        g.addColorStop(0.6, '#00FF00');
+        g.addColorStop(0.8, '#0000FF');
+        g.addColorStop(1, '#9400D3');
+        return g;
+      }
+    },
+    { color1: '#FF0000', color2: '#9400D3', name: 'Rainbow 2', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FF0000');
+        g.addColorStop(0.2, '#FFA500');
+        g.addColorStop(0.4, '#FFFF00');
+        g.addColorStop(0.6, '#00FF00');
+        g.addColorStop(0.8, '#0000FF');
+        g.addColorStop(1, '#9400D3');
+        return g;
+      }
+    },
+    
+    // Metallic Series
+    { color1: '#A0A0A0', color2: '#D0D0D0', name: 'Silver', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y);
+        g.addColorStop(0, '#D0D0D0');
+        g.addColorStop(0.5, '#F8F8F8');
+        g.addColorStop(1, '#A0A0A0');
+        return g;
+      }
+    },
+    { color1: '#B8860B', color2: '#DAA520', name: 'Antique Gold', unlocked: false, price: 180, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y);
+        g.addColorStop(0, '#B8860B');
+        g.addColorStop(0.5, '#DAA520');
+        g.addColorStop(1, '#B8860B');
+        return g;
+      }
+    },
+    { color1: '#808080', color2: '#A9A9A9', name: 'Titanium', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#808080');
+        g.addColorStop(0.5, '#A9A9A9');
+        g.addColorStop(1, '#696969');
+        return g;
+      }
+    },
+    
+    // Neon Series
+    { color1: '#FF00FF', color2: '#FF69B4', name: 'Neon Pink', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FF00FF');
+        g.addColorStop(1, '#FF69B4');
+        return g;
+      }
+    },
+    { color1: '#00FF00', color2: '#39FF14', name: 'Neon Green', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#00FF00');
+        g.addColorStop(1, '#39FF14');
+        return g;
+      }
+    },
+    { color1: '#FF6600', color2: '#FF9933', name: 'Neon Orange', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FF6600');
+        g.addColorStop(1, '#FF9933');
+        return g;
+      }
+    },
+    
+    // Celestial Series
+    { color1: '#000033', color2: '#0000FF', name: 'Night Sky', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#0000FF');
+        g.addColorStop(1, '#000033');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Draw base
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#0000FF');
+        g.addColorStop(1, '#000033');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Draw stars
+        ctx.fillStyle = "#FFFFFF";
+        for (let i = 0; i < 20; i++) {
+          ctx.beginPath();
+          const starX = x + Math.random() * w;
+          const starY = y + Math.random() * h;
+          const radius = Math.random() * 2;
+          ctx.arc(starX, starY, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#4B0082', color2: '#800080', name: 'Nebula', unlocked: false, price: 180, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#800080');
+        g.addColorStop(0.5, '#9370DB');
+        g.addColorStop(1, '#4B0082');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Draw base
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#800080');
+        g.addColorStop(0.5, '#9370DB');
+        g.addColorStop(1, '#4B0082');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Draw nebula texture
+        ctx.globalAlpha = 0.5;
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          const cloudX = x + Math.random() * w;
+          const cloudY = y + Math.random() * h;
+          const radius = Math.random() * 20 + 5;
+          ctx.fillStyle = Math.random() > 0.5 ? '#9370DB' : '#C3B1E1';
+          ctx.arc(cloudX, cloudY, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    },
+    
+    // Nature Series
+    { color1: '#228B22', color2: '#008000', name: 'Forest', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#228B22');
+        g.addColorStop(1, '#008000');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Draw base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#228B22');
+        g.addColorStop(1, '#008000');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Draw leaf pattern
+        ctx.strokeStyle = '#32CD32';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          const startX = x + Math.random() * w;
+          const startY = y + Math.random() * h;
+          ctx.moveTo(startX, startY);
+          ctx.bezierCurveTo(
+            startX + 10, startY - 10,
+            startX + 20, startY - 10,
+            startX + 30, startY
+          );
+          ctx.stroke();
+        }
+      }
+    },
+    { color1: '#5F9EA0', color2: '#ADD8E6', name: 'Ocean', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#ADD8E6');
+        g.addColorStop(1, '#5F9EA0');
+        return g;
+      }
+    },
+    
+    // Patterns Series
+    { color1: '#000000', color2: '#FFFFFF', name: 'Checkerboard', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        const tileSize = w / 4;
+        for (let i = 0; i < 4; i++) {
+          for (let j = 0; j < 4; j++) {
+            ctx.fillStyle = (i + j) % 2 === 0 ? '#000000' : '#FFFFFF';
+            ctx.fillRect(x + i * tileSize, y + j * tileSize, tileSize, tileSize);
+          }
+        }
+      }
+    },
+    { color1: '#000000', color2: '#FF0000', name: 'Striped', unlocked: false, price: 130, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        const stripeWidth = w / 5;
+        for (let i = 0; i < 5; i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#000000' : '#FF0000';
+          ctx.fillRect(x + i * stripeWidth, y, stripeWidth, h);
+        }
+      }
+    },
+    
+    // Elemental Series
+    { color1: '#E25822', color2: '#FF4500', name: 'Fire', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y + h, x, y);
+        g.addColorStop(0, '#E25822');
+        g.addColorStop(0.5, '#FF4500');
+        g.addColorStop(1, '#FFD700');
+        return g;
+      }
+    },
+    { color1: '#A5F2F3', color2: '#00FFFF', name: 'Ice', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFFFFF');
+        g.addColorStop(0.5, '#A5F2F3');
+        g.addColorStop(1, '#00FFFF');
+        return g;
+      }
+    },
+    { color1: '#8B4513', color2: '#A0522D', name: 'Earth', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#A0522D');
+        g.addColorStop(1, '#8B4513');
+        return g;
+      }
+    },
+    { color1: '#F0FFFF', color2: '#E0FFFF', name: 'Air', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#FFFFFF');
+        g.addColorStop(1, '#E0FFFF');
+        return g;
+      }
+    },
+    
+    // Candy Series
+    { color1: '#FF77FF', color2: '#FFC0CB', name: 'Cotton Candy', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FF77FF');
+        g.addColorStop(1, '#FFC0CB');
+        return g;
+      }
+    },
+    { color1: '#CD5C5C', color2: '#FF6347', name: 'Cherry', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#FF6347');
+        g.addColorStop(1, '#CD5C5C');
+        return g;
+      }
+    },
+    { color1: '#FFDAB9', color2: '#FFE4B5', name: 'Caramel', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFDAB9');
+        g.addColorStop(1, '#FFE4B5');
+        return g;
+      }
+    },
+    
+    // Gem Series
+    { color1: '#50C878', color2: '#00A36C', name: 'Emerald', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#50C878');
+        g.addColorStop(1, '#00A36C');
+        return g;
+      }
+    },
+    { color1: '#E0115F', color2: '#FF007F', name: 'Ruby', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#E0115F');
+        g.addColorStop(1, '#FF007F');
+        return g;
+      }
+    },
+    { color1: '#0F52BA', color2: '#4169E1', name: 'Sapphire', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#0F52BA');
+        g.addColorStop(1, '#4169E1');
+        return g;
+      }
+    },
+    { color1: '#9966CC', color2: '#8A2BE2', name: 'Amethyst', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#9966CC');
+        g.addColorStop(1, '#8A2BE2');
+        return g;
+      }
+    },
+    
+    // Exotic Series
+    { color1: '#800000', color2: '#A52A2A', name: 'Mahogany', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#800000');
+        g.addColorStop(1, '#A52A2A');
+        return g;
+      }
+    },
+    { color1: '#4B0082', color2: '#800080', name: 'Royal Purple', unlocked: false, price: 180, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#4B0082');
+        g.addColorStop(1, '#800080');
+        return g;
+      }
+    },
+    { color1: '#FFD700', color2: '#B8860B', name: 'Royal Gold', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFD700');
+        g.addColorStop(1, '#B8860B');
+        return g;
+      }
+    },
+    
+    // Holiday Series
+    { color1: '#FF0000', color2: '#006400', name: 'Christmas', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Draw base
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(x, y, w, h/2);
+        ctx.fillStyle = '#006400';
+        ctx.fillRect(x, y + h/2, w, h/2);
+        
+        // Draw snowflakes
+        ctx.fillStyle = '#FFFFFF';
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          const snowX = x + Math.random() * w;
+          const snowY = y + Math.random() * (h/2);
+          ctx.arc(snowX, snowY, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#FF6600', color2: '#000000', name: 'Halloween', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FF6600';
+        ctx.fillRect(x, y, w, h);
+        
+        // Draw pattern
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            if ((i + j) % 2 === 1) {
+              ctx.beginPath();
+              ctx.arc(x + w * (i+1)/4, y + h * (j+1)/4, 5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+      }
+    },
+    
+    // Pop Culture Series
+    { color1: '#FF0000', color2: '#0000FF', name: 'Superhero', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Draw split background
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(x, y, w/2, h);
+        ctx.fillStyle = '#0000FF';
+        ctx.fillRect(x + w/2, y, w/2, h);
+        
+        // Draw emblem
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(x + w/2, y + h/4);
+        ctx.lineTo(x + w/2 + w/8, y + h/2);
+        ctx.lineTo(x + w/2, y + h*3/4);
+        ctx.lineTo(x + w/2 - w/8, y + h/2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    },
+    { color1: '#000000', color2: '#FFFFFF', name: 'Ninja', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Mask
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x + w/4, y + h/3, w/2, h/12);
+      }
+    },
+    
+    // Cosmic Series
+    { color1: '#663399', color2: '#C71585', name: 'Galaxy Swirl', unlocked: false, price: 200, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#663399');
+        g.addColorStop(0.5, '#C71585');
+        g.addColorStop(1, '#000000');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Base gradient
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#663399');
+        g.addColorStop(0.5, '#C71585');
+        g.addColorStop(1, '#000000');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Stars
+        ctx.fillStyle = '#FFFFFF';
+        for (let i = 0; i < 20; i++) {
+          const size = Math.random() * 2;
+          ctx.fillRect(
+            x + Math.random() * w,
+            y + Math.random() * h,
+            size, size
+          );
+        }
+      }
+    },
+    { color1: '#000000', color2: '#191970', name: 'Black Hole', unlocked: false, price: 250, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w);
+        g.addColorStop(0, '#000000');
+        g.addColorStop(0.7, '#191970');
+        g.addColorStop(1, '#000000');
+        return g;
+      }
+    },
+    
+    // Tech Series
+    { color1: '#00FFFF', color2: '#000000', name: 'Digital', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Binary pattern
+        ctx.font = '10px Arial';
+        ctx.fillStyle = '#00FFFF';
+        
+        for (let i = 0; i < 10; i++) {
+          for (let j = 0; j < 5; j++) {
+            const digit = Math.random() > 0.5 ? '1' : '0';
+            ctx.fillText(digit, x + i * 10 + 5, y + j * 15 + 15);
+          }
+        }
+      }
+    },
+    { color1: '#C0C0C0', color2: '#808080', name: 'Robot', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#C0C0C0';
+        ctx.fillRect(x, y, w, h);
+        
+        // Eyes
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(x + w/4, y + h/3, w/6, h/10);
+        ctx.fillRect(x + w*3/5, y + h/3, w/6, h/10);
+        
+        // Mouth
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x + w/4, y + h*2/3, w/2, h/12);
+        
+        // Lines
+        ctx.strokeStyle = '#808080';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + w/5, y);
+        ctx.lineTo(x + w/5, y + h);
+        ctx.moveTo(x + w*4/5, y);
+        ctx.lineTo(x + w*4/5, y + h);
+        ctx.stroke();
+      }
+    },
+    
+    // Abstract Series
+    { color1: '#FF00FF', color2: '#00FFFF', name: 'Neon Lights', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FF00FF');
+        g.addColorStop(1, '#00FFFF');
+        return g;
+      }
+    },
+    { color1: '#000000', color2: '#FFFFFF', name: 'Hypnotic', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Concentric circles
+        const maxRadius = Math.min(w, h) / 2;
+        const centerX = x + w/2;
+        const centerY = y + h/2;
+        
+        for (let i = maxRadius; i > 0; i -= maxRadius/5) {
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, i, 0, Math.PI * 2);
+          ctx.fillStyle = i % (maxRadius/2.5) < maxRadius/5 ? '#FFFFFF' : '#000000';
+          ctx.fill();
+        }
+      }
+    },
+    
+    // Animal Series
+    { color1: '#FFA500', color2: '#000000', name: 'Tiger', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFA500';
+        ctx.fillRect(x, y, w, h);
+        
+        // Stripes
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + i * h/4);
+          ctx.lineTo(x + w, y + i * h/4 + h/8);
+          ctx.lineTo(x + w, y + i * h/4 + h/4);
+          ctx.lineTo(x, y + i * h/4 + h/8);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#FFFFFF', color2: '#000000', name: 'Panda', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x, y, w, h);
+        
+        // Eyes
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(x + w/3, y + h/3, w/8, 0, Math.PI * 2);
+        ctx.arc(x + w*2/3, y + h/3, w/8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ears
+        ctx.beginPath();
+        ctx.arc(x + w/5, y + h/6, w/10, 0, Math.PI * 2);
+        ctx.arc(x + w*4/5, y + h/6, w/10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    
+    // Retro Series
+    { color1: '#FF4500', color2: '#FFD700', name: 'Retro Sunset', unlocked: false, price: 150, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFD700');
+        g.addColorStop(0.5, '#FF4500');
+        g.addColorStop(1, '#800080');
+        return g;
+      }
+    },
+    { color1: '#000000', color2: '#00FF00', name: 'Matrix', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Matrix characters
+        ctx.font = '10px Courier';
+        ctx.fillStyle = '#00FF00';
+        
+        const characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        
+        for (let i = 0; i < 8; i++) {
+          for (let j = 0; j < 5; j++) {
+            const char = characters.charAt(Math.floor(Math.random() * characters.length));
+            ctx.fillText(char, x + i * 12 + 5, y + j * 15 + 15);
+          }
+        }
+      }
+    },
+    
+    // Food Series
+    { color1: '#8B0000', color2: '#FF0000', name: 'Cherry', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#FF0000');
+        g.addColorStop(1, '#8B0000');
+        return g;
+      }
+    },
+    { color1: '#FFD700', color2: '#FFA500', name: 'Cheese', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FFD700');
+        g.addColorStop(1, '#FFA500');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FFD700');
+        g.addColorStop(1, '#FFA500');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Holes
+        ctx.fillStyle = '#FFF8DC';
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          const holeX = x + Math.random() * (w - 10) + 5;
+          const holeY = y + Math.random() * (h - 10) + 5;
+          const holeSize = Math.random() * 8 + 5;
+          ctx.arc(holeX, holeY, holeSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    
+    // Weather Series
+    { color1: '#1E90FF', color2: '#00BFFF', name: 'Rainy', unlocked: false, price: 130, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#1E90FF');
+        g.addColorStop(1, '#00BFFF');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Rain drops
+        ctx.strokeStyle = '#E0FFFF';
+        ctx.lineWidth = 1;
+        
+        for (let i = 0; i < 20; i++) {
+          const dropX = x + Math.random() * w;
+          const dropY = y + Math.random() * h;
+          const dropLength = Math.random() * 10 + 5;
+          
+          ctx.beginPath();
+          ctx.moveTo(dropX, dropY);
+          ctx.lineTo(dropX - dropLength/3, dropY + dropLength);
+          ctx.stroke();
+        }
+      }
+    },
+    { color1: '#FFFF00', color2: '#FFA500', name: 'Sunny', unlocked: false, price: 130, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, Math.max(w, h));
+        g.addColorStop(0, '#FFFF00');
+        g.addColorStop(0.7, '#FFA500');
+        g.addColorStop(1, '#FF4500');
+        return g;
+      }
+    },
+    
+    // Monochrome Series
+    { color1: '#000000', color2: '#FFFFFF', name: 'Yin Yang', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        const centerX = x + w/2;
+        const centerY = y + h/2;
+        const radius = Math.min(w, h)/2 - 5;
+        
+        // Draw dividing curve
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // White half
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x, y, w, h);
+        
+        // Black half
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, Math.PI/2, Math.PI * 3/2);
+        ctx.fill();
+        
+        // Small circles
+        ctx.beginPath();
+        ctx.arc(centerX, centerY - radius/2, radius/4, 0, Math.PI * 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY + radius/2, radius/4, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        
+        ctx.restore();
+      }
+    },
+    { color1: '#000000', color2: '#FFFFFF', name: 'Zebra', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x, y, w, h);
+        
+        // Stripes
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 10; i++) {
+          ctx.fillRect(x, y + i * h/5, w, h/10);
+        }
+      }
+    },
+    
+    // Fruit Series
+    { color1: '#FF6347', color2: '#FF4500', name: 'Tomato', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#FF6347');
+        g.addColorStop(1, '#FF4500');
+        return g;
+      }
+    },
+    { color1: '#9ACD32', color2: '#556B2F', name: 'Lime', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#9ACD32');
+        g.addColorStop(1, '#556B2F');
+        return g;
+      }
+    },
+    { color1: '#8A2BE2', color2: '#4B0082', name: 'Grape', unlocked: false, price: 100, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#8A2BE2');
+        g.addColorStop(1, '#4B0082');
+        return g;
+      }
+    },
+    
+    // Emoji Series
+    { color1: '#FFFF00', color2: '#FFD700', name: 'Happy Face', unlocked: false, price: 120, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Eyes
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(x + w/3, y + h/3, w/10, 0, Math.PI * 2);
+        ctx.arc(x + w*2/3, y + h/3, w/10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Smile
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, w/3, 0, Math.PI);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    },
+    { color1: '#FFFF00', color2: '#FFD700', name: 'Cool Face', unlocked: false, price: 120, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Sunglasses
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x + w/5, y + h/3, w*3/5, h/8);
+        
+        // Smile
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h*2/3, w/4, 0, Math.PI);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    },
+    
+    // Sports Series
+    { color1: '#FF6600', color2: '#000000', name: 'Basketball', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FF6600';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Lines
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        
+        // Horizontal line
+        ctx.beginPath();
+        ctx.moveTo(x + 5, y + h/2);
+        ctx.lineTo(x + w - 5, y + h/2);
+        ctx.stroke();
+        
+        // Vertical lines
+        ctx.beginPath();
+        ctx.moveTo(x + w/2, y + 5);
+        ctx.lineTo(x + w/2, y + h - 5);
+        ctx.stroke();
+        
+        // Curve lines
+        ctx.beginPath();
+        ctx.arc(x + w/2, y - h/3, h, 0, Math.PI, false);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h + h/3, h, Math.PI, Math.PI * 2, false);
+        ctx.stroke();
+      }
+    },
+    { color1: '#FFFFFF', color2: '#000000', name: 'Soccer Ball', unlocked: false, price: 150, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Pentagon pattern
+        ctx.fillStyle = '#000000';
+        const centerX = x + w/2;
+        const centerY = y + h/2;
+        const radius = Math.min(w, h)/2 - 5;
+        
+        for (let i = 0; i < 5; i++) {
+          const angle = i * (Math.PI * 2 / 5) - Math.PI/2;
+          const px = centerX + Math.cos(angle) * radius * 0.6;
+          const py = centerY + Math.sin(angle) * radius * 0.6;
+          
+          ctx.beginPath();
+          ctx.arc(px, py, radius * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    
+    // Miscellaneous Series (filling up to 100)
+    { color1: '#FF69B4', color2: '#FF1493', name: 'Bubblegum', unlocked: false, price: 110, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        g.addColorStop(0, '#FF69B4');
+        g.addColorStop(1, '#FF1493');
+        return g;
+      }
+    },
+    { color1: '#000000', color2: '#C0C0C0', name: 'Vinyl Record', unlocked: false, price: 140, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Rings
+        ctx.strokeStyle = '#C0C0C0';
+        
+        for (let i = 1; i <= 5; i++) {
+          ctx.beginPath();
+          ctx.arc(x + w/2, y + h/2, (Math.min(w, h)/2 - 5) * i/6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        
+        // Center hole
+        ctx.fillStyle = '#C0C0C0';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, Math.min(w, h)/10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    { color1: '#6495ED', color2: '#4682B4', name: 'Denim', unlocked: false, price: 120, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#6495ED');
+        g.addColorStop(1, '#4682B4');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Texture
+        ctx.strokeStyle = '#4169E1';
+        ctx.lineWidth = 1;
+        
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + i * h/10);
+          ctx.lineTo(x + w, y + i * h/10 + h/15);
+          ctx.stroke();
+        }
+        
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          ctx.moveTo(x + i * w/10, y);
+          ctx.lineTo(x + i * w/10 + w/30, y + h);
+          ctx.stroke();
+        }
+      }
+    },
+    { color1: '#F0E68C', color2: '#BDB76B', name: 'Parchment', unlocked: false, price: 130, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#F0E68C');
+        g.addColorStop(1, '#BDB76B');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Texture
+        ctx.fillStyle = 'rgba(139, 126, 102, 0.1)';
+        for (let i = 0; i < 20; i++) {
+          const tx = x + Math.random() * w;
+          const ty = y + Math.random() * h;
+          const ts = Math.random() * 10 + 5;
+          ctx.beginPath();
+          ctx.arc(tx, ty, ts, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#8B4513', color2: '#A0522D', name: 'Wood Grain', unlocked: false, price: 130, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#8B4513');
+        g.addColorStop(1, '#A0522D');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Grain
+        ctx.strokeStyle = 'rgba(139, 69, 19, 0.3)';
+        ctx.lineWidth = 1;
+        
+        for (let i = 0; i < 15; i++) {
+          ctx.beginPath();
+          ctx.moveTo(x, y + i * h/15);
+          
+          let lastX = x;
+          let lastY = y + i * h/15;
+          
+          for (let j = 0; j < 10; j++) {
+            const newX = lastX + w/10;
+            const newY = lastY + (Math.random() * 10 - 5);
+            ctx.lineTo(newX, newY);
+            lastX = newX;
+            lastY = newY;
+          }
+          
+          ctx.stroke();
+        }
+      }
+    },
+    { color1: '#40E0D0', color2: '#7FFFD4', name: 'Liquid', unlocked: false, price: 140, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#40E0D0');
+        g.addColorStop(1, '#7FFFD4');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Bubble pattern
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        for (let i = 0; i < 12; i++) {
+          const bubbleX = x + Math.random() * w;
+          const bubbleY = y + Math.random() * h;
+          const bubbleSize = Math.random() * 12 + 3;
+          
+          ctx.beginPath();
+          ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Bubble highlight
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.beginPath();
+          ctx.arc(bubbleX - bubbleSize/3, bubbleY - bubbleSize/3, bubbleSize/4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        }
+      }
+    },
+    { color1: '#FFE4E1', color2: '#FFC0CB', name: 'Bubble Gum', unlocked: false, price: 110, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFE4E1');
+        g.addColorStop(1, '#FFC0CB');
+        return g;
+      }
+    },
+    { color1: '#2E8B57', color2: '#3CB371', name: 'Evergreen', unlocked: false, price: 120, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#2E8B57');
+        g.addColorStop(1, '#3CB371');
+        return g;
+      }
+    },
+    { color1: '#8B0000', color2: '#CD5C5C', name: 'Brick', unlocked: false, price: 130, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#8B0000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Brick pattern
+        ctx.strokeStyle = '#CD5C5C';
+        ctx.lineWidth = 2;
+        
+        const brickHeight = h / 6;
+        const brickWidth = w / 3;
+        
+        for (let i = 0; i < 6; i++) {
+          // Horizontal lines
+          ctx.beginPath();
+          ctx.moveTo(x, y + i * brickHeight);
+          ctx.lineTo(x + w, y + i * brickHeight);
+          ctx.stroke();
+          
+          // Vertical lines - offset every other row
+          const offset = i % 2 === 0 ? 0 : brickWidth / 2;
+          
+          for (let j = 0; j < 3; j++) {
+            ctx.beginPath();
+            ctx.moveTo(x + offset + j * brickWidth, y + i * brickHeight);
+            ctx.lineTo(x + offset + j * brickWidth, y + (i + 1) * brickHeight);
+            ctx.stroke();
+          }
+        }
+      }
+    },
+    { color1: '#F5F5DC', color2: '#DEB887', name: 'Pebbles', unlocked: false, price: 140, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#F5F5DC';
+        ctx.fillRect(x, y, w, h);
+        
+        // Pebble pattern
+        for (let i = 0; i < 25; i++) {
+          const pebbleX = x + Math.random() * w;
+          const pebbleY = y + Math.random() * h;
+          const pebbleW = Math.random() * 15 + 5;
+          const pebbleH = Math.random() * 10 + 5;
+          
+          ctx.fillStyle = `rgba(222, 184, 135, ${Math.random() * 0.5 + 0.5})`;
+          ctx.beginPath();
+          ctx.ellipse(pebbleX, pebbleY, pebbleW/2, pebbleH/2, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#000000', color2: '#696969', name: 'Outer Space', unlocked: false, price: 180, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        
+        // Stars
+        for (let i = 0; i < 50; i++) {
+          const starX = x + Math.random() * w;
+          const starY = y + Math.random() * h;
+          const starSize = Math.random() * 2 + 0.5;
+          
+          ctx.fillStyle = Math.random() > 0.8 ? '#00FFFF' : '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(starX, starY, starSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Nebula
+        ctx.globalAlpha = 0.2;
+        for (let i = 0; i < 3; i++) {
+          const nebulaX = x + Math.random() * w;
+          const nebulaY = y + Math.random() * h;
+          const nebulaSize = Math.random() * 40 + 20;
+          
+          ctx.fillStyle = i % 3 === 0 ? '#9370DB' : i % 3 === 1 ? '#1E90FF' : '#FF1493';
+          ctx.beginPath();
+          ctx.arc(nebulaX, nebulaY, nebulaSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    },
+    { color1: '#FFD700', color2: '#8B4513', name: 'Treasure', unlocked: false, price: 200, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Base - gold
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        g.addColorStop(0, '#FFD700');
+        g.addColorStop(1, '#B8860B');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Gem pattern
+        const gemColors = ['#FF0000', '#0000FF', '#00FF00', '#9400D3', '#00FFFF'];
+        
+        for (let i = 0; i < 5; i++) {
+          const gemX = x + Math.random() * (w - 20) + 10;
+          const gemY = y + Math.random() * (h - 20) + 10;
+          const gemSize = Math.random() * 10 + 5;
+          
+          ctx.fillStyle = gemColors[Math.floor(Math.random() * gemColors.length)];
+          
+          // Draw a diamond shape
+          ctx.beginPath();
+          ctx.moveTo(gemX, gemY - gemSize);
+          ctx.lineTo(gemX + gemSize, gemY);
+          ctx.lineTo(gemX, gemY + gemSize);
+          ctx.lineTo(gemX - gemSize, gemY);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Add highlight
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.beginPath();
+          ctx.moveTo(gemX, gemY - gemSize/2);
+          ctx.lineTo(gemX + gemSize/4, gemY - gemSize/4);
+          ctx.lineTo(gemX, gemY);
+          ctx.lineTo(gemX - gemSize/4, gemY - gemSize/4);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#E6E6FA', color2: '#D8BFD8', name: 'Pastel Dreams', unlocked: false, price: 140, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#E6E6FA');
+        g.addColorStop(1, '#D8BFD8');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#E6E6FA');
+        g.addColorStop(1, '#D8BFD8');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Pastel circles
+        const colors = ['#FFB6C1', '#87CEFA', '#98FB98', '#FFFACD'];
+        
+        for (let i = 0; i < 8; i++) {
+          const circleX = x + Math.random() * w;
+          const circleY = y + Math.random() * h;
+          const circleSize = Math.random() * 15 + 5;
+          
+          ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+          ctx.globalAlpha = 0.4;
+          ctx.beginPath();
+          ctx.arc(circleX, circleY, circleSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    },
+    { color1: '#8A2BE2', color2: '#4B0082', name: 'Regal', unlocked: false, price: 180, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x + w, y);
+        g.addColorStop(0, '#8A2BE2');
+        g.addColorStop(1, '#4B0082');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x + w, y);
+        g.addColorStop(0, '#8A2BE2');
+        g.addColorStop(1, '#4B0082');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Crown pattern
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.moveTo(x + w/4, y + h/2);
+        ctx.lineTo(x + w/3, y + h/3);
+        ctx.lineTo(x + w/2, y + h/2);
+        ctx.lineTo(x + w*2/3, y + h/3);
+        ctx.lineTo(x + w*3/4, y + h/2);
+        ctx.lineTo(x + w*2/3, y + h*2/3);
+        ctx.lineTo(x + w/3, y + h*2/3);
+        ctx.closePath();
+        ctx.fill();
+      }
+    },
+    { color1: '#FFA07A', color2: '#FF7F50', name: 'Coral Reef', unlocked: false, price: 160, inShop: true,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFA07A');
+        g.addColorStop(1, '#FF7F50');
+        return g;
+      },
+      render: (ctx, x, y, w, h) => {
+        // Base
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#FFA07A');
+        g.addColorStop(1, '#FF7F50');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Coral patterns
+        ctx.fillStyle = '#FF6347';
+        for (let i = 0; i < 6; i++) {
+          const cx = x + Math.random() * (w - 20) + 10;
+          const cy = y + h - Math.random() * 20 - 10;
+          
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx - 10, cy - 20);
+          ctx.lineTo(cx, cy - 30);
+          ctx.lineTo(cx + 10, cy - 20);
+          ctx.closePath();
+          ctx.fill();
+        }
+        
+        // Bubbles
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        for (let i = 0; i < 10; i++) {
+          const bx = x + Math.random() * w;
+          const by = y + Math.random() * h;
+          const bs = Math.random() * 5 + 2;
+          
+          ctx.beginPath();
+          ctx.arc(bx, by, bs, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+    { color1: '#FFFFFF', color2: '#87CEEB', name: 'Clouds', unlocked: false, price: 120, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Sky background
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(x, y, w, h);
+        
+        // Cloud shapes
+        ctx.fillStyle = '#FFFFFF';
+        
+        // Cloud 1
+        ctx.beginPath();
+        ctx.arc(x + w/4, y + h/3, w/8, 0, Math.PI * 2);
+        ctx.arc(x + w/3, y + h/4, w/10, 0, Math.PI * 2);
+        ctx.arc(x + w/6, y + h/4, w/12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Cloud 2
+        ctx.beginPath();
+        ctx.arc(x + w*2/3, y + h*2/3, w/10, 0, Math.PI * 2);
+        ctx.arc(x + w*3/4, y + h*3/5, w/8, 0, Math.PI * 2);
+        ctx.arc(x + w*5/6, y + h*2/3, w/12, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    
+    // Premium Icon (most expensive, special effect)
+    { color1: '#FFFFFF', color2: '#000000', name: 'Rainbow Prism', unlocked: false, price: 500, inShop: true,
+      render: (ctx, x, y, w, h) => {
+        // Create animated rainbow gradient
+        const time = Date.now() / 1000;
+        const g = ctx.createLinearGradient(x, y, x + w, y + h);
+        
+        g.addColorStop(0, `hsl(${(time * 50) % 360}, 100%, 50%)`);
+        g.addColorStop(0.2, `hsl(${(time * 50 + 72) % 360}, 100%, 50%)`);
+        g.addColorStop(0.4, `hsl(${(time * 50 + 144) % 360}, 100%, 50%)`);
+        g.addColorStop(0.6, `hsl(${(time * 50 + 216) % 360}, 100%, 50%)`);
+        g.addColorStop(0.8, `hsl(${(time * 50 + 288) % 360}, 100%, 50%)`);
+        g.addColorStop(1, `hsl(${(time * 50) % 360}, 100%, 50%)`);
+        
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        
+        // Add prismatic effect
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w/2, y + h/2);
+        ctx.lineTo(x, y + h);
+        ctx.closePath();
+        ctx.fill();
+      },
+      animated: true
     }
 ];
 const VOID_THRESHOLD = 1000; // Height at which player dies
@@ -1315,7 +2603,22 @@ function drawShareOverlay(score) {
     ctx.fillText('Cancel', canvas.width / 2, buttonY + 35);
 }
 
+// Add state for pagination
+let currentShopPage = 0;
+let currentHomePage = 0;
+const iconsPerPage = 12; // 3x4 grid for shop
+const charsPerHomePage = 6; // Number of characters to show per home screen page
+
 function drawShop() {
+    // Make sure currentShopPage doesn't exceed the valid range
+    const totalPages = Math.ceil(characters.length / iconsPerPage);
+    if (currentShopPage >= totalPages) {
+        currentShopPage = totalPages - 1;
+    }
+    if (currentShopPage < 0) {
+        currentShopPage = 0;
+    }
+
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1327,33 +2630,55 @@ function drawShop() {
     ctx.font = '20px "Press Start 2P"';
     ctx.fillText(`Coins: ${coinCount}`, canvas.width / 2, 150);
 
-    const gridSize = 4;
+    // Display page information
+    ctx.font = '16px "Press Start 2P"';
+    ctx.fillText(`Page ${currentShopPage + 1}/${totalPages}`, canvas.width / 2, 180);
+
+    const gridCols = 4;
+    const gridRows = 3;
     const itemWidth = 150;
     const itemHeight = 150;
     const padding = 20;
-    const startX = (canvas.width - (gridSize * (itemWidth + padding))) / 2;
-    const startY = 200;
+    const startX = (canvas.width - (gridCols * (itemWidth + padding))) / 2;
+    const startY = 220;
 
-    characters.forEach((char, index) => {
-        const row = Math.floor(index / gridSize);
-        const col = index % gridSize;
+    // Calculate which icons to show on the current page
+    const startIndex = currentShopPage * iconsPerPage;
+    const endIndex = Math.min(startIndex + iconsPerPage, characters.length);
+    
+    // Draw each character icon for the current page
+    for (let i = startIndex; i < endIndex; i++) {
+        const char = characters[i];
+        const relativeIndex = i - startIndex;
+        const row = Math.floor(relativeIndex / gridCols);
+        const col = relativeIndex % gridCols;
         const x = startX + col * (itemWidth + padding);
         const y = startY + row * (itemHeight + padding);
 
-        // Draw item background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        // Draw item background with highlight if selected
+        if (i === selectedCharacter) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        } else {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        }
         ctx.fillRect(x, y, itemWidth, itemHeight);
 
         // Draw character preview
-        if (char.gradient) {
+        if (char.render) {
+            // Use custom render function if available
+            char.render(ctx, x + 25, y + 25, 100, 100);
+        } else if (char.gradient) {
+            // Use gradient function if available
             ctx.fillStyle = char.gradient(ctx, x + 25, y + 25, 100, 100);
+            ctx.fillRect(x + 25, y + 25, 100, 100);
         } else {
+            // Default gradient rendering
             const gradient = ctx.createLinearGradient(x + 25, y + 25, x + 25, y + 125);
             gradient.addColorStop(0, char.color1);
             gradient.addColorStop(1, char.color2);
             ctx.fillStyle = gradient;
+            ctx.fillRect(x + 25, y + 25, 100, 100);
         }
-        ctx.fillRect(x + 25, y + 25, 100, 100);
 
         // Draw name and price/status
         ctx.font = '12px "Press Start 2P"';
@@ -1367,7 +2692,14 @@ function drawShop() {
             ctx.fillStyle = '#FFA500';
             ctx.fillText(char.price + ' COINS', x + itemWidth/2, y + itemHeight - 10);
         }
-    });
+        
+        // Draw selection indicator if this is the currently selected character
+        if (i === selectedCharacter) {
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x + 5, y + 5, itemWidth - 10, itemHeight - 10);
+        }
+    }
 
     // Back button
     ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -1376,6 +2708,31 @@ function drawShop() {
     ctx.fillStyle = 'white';
     ctx.textAlign = 'left';
     ctx.fillText('←', 50, 48);
+    
+    // Draw pagination controls
+    const buttonWidth = 150;
+    const buttonHeight = 50;
+    const buttonY = canvas.height - 80;
+    
+    // Previous page button
+    if (currentShopPage > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(canvas.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.font = '20px "Press Start 2P"';
+        ctx.fillText('←', canvas.width / 4, buttonY + 35);
+    }
+    
+    // Next page button
+    if (currentShopPage < totalPages - 1) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(canvas.width * 3/4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.font = '20px "Press Start 2P"';
+        ctx.fillText('→', canvas.width * 3/4, buttonY + 35);
+    }
 }
 
 function drawHomeScreen() {
@@ -1398,21 +2755,53 @@ function drawHomeScreen() {
     ctx.font = '16px "Press Start 2P"';
     ctx.fillText('Press ENTER to continue', canvas.width / 2, canvas.height / 2 - 20);
 
-    // Draw character options (basic and unlocked characters)
+    // Get all unlocked characters
     const titleScreenChars = characters.filter(char => !char.inShop || (char.inShop && char.unlocked));
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(titleScreenChars.length / charsPerHomePage);
+    
+    // Make sure currentHomePage doesn't exceed the valid range
+    if (currentHomePage >= totalPages) {
+        currentHomePage = totalPages - 1;
+    }
+    if (currentHomePage < 0) {
+        currentHomePage = 0;
+    }
+    
+    // Display page information if multiple pages
+    if (totalPages > 1) {
+        ctx.font = '14px "Press Start 2P"';
+        ctx.fillStyle = 'white';
+        ctx.fillText(`Page ${currentHomePage + 1}/${totalPages}`, canvas.width / 2, canvas.height / 2 - 80);
+    }
+    
+    // Calculate start and end indices for the current page
+    const startIndex = currentHomePage * charsPerHomePage;
+    const endIndex = Math.min(startIndex + charsPerHomePage, titleScreenChars.length);
+    
+    // Calculate spacing and starting position for the current page's characters
     const characterSpacing = 120;
-    const startX = canvas.width / 2 - (titleScreenChars.length * characterSpacing) / 2;
-
-    titleScreenChars.forEach((char, index) => {
-        const x = startX + index * characterSpacing;
+    const charsOnThisPage = endIndex - startIndex;
+    const startX = canvas.width / 2 - (charsOnThisPage * characterSpacing) / 2;
+    
+    // Draw only the characters for the current page
+    for (let i = startIndex; i < endIndex; i++) {
+        const char = titleScreenChars[i];
+        const relativeIndex = i - startIndex;
+        const x = startX + relativeIndex * characterSpacing;
         const y = canvas.height / 2 + 30;
+        
+        // Find the character's actual index in the characters array
+        // This is important for selecting the correct character
+        const originalIndex = characters.indexOf(char);
 
         // Draw character box
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.fillRect(x - 35, y - 35, 70, 70);
 
         // Draw selection highlight with animation
-        if (index === selectedCharacter) {
+        if (originalIndex === selectedCharacter) {
             ctx.strokeStyle = '#FFF';
             ctx.lineWidth = 4;
             const pulseSize = Math.sin(Date.now() / 200) * 5; // Pulsing animation
@@ -1423,13 +2812,23 @@ function drawHomeScreen() {
             ctx.shadowBlur = 20;
         }
 
-        // Drawcharacter
+        // Draw character
         ctx.save();
-        const gradient = ctx.createLinearGradient(x - 25, y - 25, x - 25, y + 25);
-        gradient.addColorStop(0, char.color1);
-        gradient.addColorStop(1, char.color2);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x - 25, y - 25, 50, 50);
+        if (char.render) {
+            // Use custom render function if available
+            char.render(ctx, x - 25, y - 25, 50, 50);
+        } else if (char.gradient) {
+            // Use gradient function if available
+            ctx.fillStyle = char.gradient(ctx, x - 25, y - 25, 50, 50);
+            ctx.fillRect(x - 25, y - 25, 50, 50);
+        } else {
+            // Default gradient rendering
+            const gradient = ctx.createLinearGradient(x - 25, y - 25, x - 25, y + 25);
+            gradient.addColorStop(0, char.color1);
+            gradient.addColorStop(1, char.color2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x - 25, y - 25, 50, 50);
+        }
 
         // Draw eyes
         ctx.fillStyle = 'white';
@@ -1451,9 +2850,43 @@ function drawHomeScreen() {
         ctx.fillStyle = 'white';
         ctx.fillText(char.name, x, y + 60);
 
+        // Draw number hint (for keyboard selection)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '10px "Press Start 2P"';
+        ctx.fillText(`${relativeIndex + 1}`, x - 25, y - 25 + 12);
+
         // Reset shadow
         ctx.shadowBlur = 0;
-    });
+    }
+    
+    // Draw pagination controls if needed
+    if (totalPages > 1) {
+        const paginationButtonWidth = 50;
+        const paginationButtonHeight = 50;
+        const paginationY = canvas.height / 2 + 30; // Same Y as characters
+        
+        // Previous page button
+        if (currentHomePage > 0) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            const prevX = startX - characterSpacing;
+            ctx.fillRect(prevX - paginationButtonWidth/2, paginationY - paginationButtonHeight/2, 
+                        paginationButtonWidth, paginationButtonHeight);
+            ctx.fillStyle = 'white';
+            ctx.font = '20px "Press Start 2P"';
+            ctx.fillText('←', prevX, paginationY + 8);
+        }
+        
+        // Next page button
+        if (currentHomePage < totalPages - 1) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            const nextX = startX + charsOnThisPage * characterSpacing;
+            ctx.fillRect(nextX - paginationButtonWidth/2, paginationY - paginationButtonHeight/2, 
+                        paginationButtonWidth, paginationButtonHeight);
+            ctx.fillStyle = 'white';
+            ctx.font = '20px "Press Start 2P"';
+            ctx.fillText('→', nextX, paginationY + 8);
+        }
+    }
 
     // Draw start button
     const buttonWidth = 200;
@@ -2264,33 +3697,72 @@ canvas.addEventListener('click', (e) => {
             // Back button
             if (x >= 20 && x <= 120 && y >= 20 && y <= 60) {
                 showShop = false;
+                currentShopPage = 0; // Reset to first page when leaving shop
                 return;
+            }
+            
+            // Pagination controls
+            const buttonWidth = 150;
+            const buttonHeight = 50;
+            const buttonY = canvas.height - 80;
+            const totalPages = Math.ceil(characters.length / iconsPerPage);
+            
+            // Previous page button
+            if (currentShopPage > 0) {
+                if (x >= canvas.width / 4 - buttonWidth / 2 && 
+                    x <= canvas.width / 4 + buttonWidth / 2 && 
+                    y >= buttonY && 
+                    y <= buttonY + buttonHeight) {
+                    currentShopPage--;
+                    return;
+                }
+            }
+            
+            // Next page button
+            if (currentShopPage < totalPages - 1) {
+                if (x >= canvas.width * 3/4 - buttonWidth / 2 && 
+                    x <= canvas.width * 3/4 + buttonWidth / 2 && 
+                    y >= buttonY && 
+                    y <= buttonY + buttonHeight) {
+                    currentShopPage++;
+                    return;
+                }
             }
 
             // Shop grid click handling
-            const gridSize = 4;
+            const gridCols = 4;
+            const gridRows = 3;
             const itemWidth = 150;
             const itemHeight = 150;
             const padding = 20;
-            const startX = (canvas.width - (gridSize * (itemWidth + padding))) / 2;
-            const startY = 200;
-
-            characters.forEach((char, index) => {
-                const row = Math.floor(index / gridSize);
-                const col = index % gridSize;
+            const startX = (canvas.width - (gridCols * (itemWidth + padding))) / 2;
+            const startY = 220;
+            
+            // Calculate which icons to show on the current page
+            const startIndex = currentShopPage * iconsPerPage;
+            const endIndex = Math.min(startIndex + iconsPerPage, characters.length);
+            
+            // Check each character on the current page
+            for (let i = startIndex; i < endIndex; i++) {
+                const char = characters[i];
+                const relativeIndex = i - startIndex;
+                const row = Math.floor(relativeIndex / gridCols);
+                const col = relativeIndex % gridCols;
                 const itemX = startX + col * (itemWidth + padding);
                 const itemY = startY + row * (itemHeight + padding);
 
                 if (x >= itemX && x <= itemX + itemWidth &&
                     y >= itemY && y <= itemY + itemHeight) {
                     if (!char.unlocked && coinCount >= char.price) {
-                        unlockCharacter(index);
+                        unlockCharacter(i);
                     } else if (char.unlocked) {
-                        selectedCharacter = index;
+                        selectedCharacter = i;
                         showShop = false;
+                        currentShopPage = 0; // Reset to first page when selecting
                     }
+                    return;
                 }
-            });
+            }
             return;
         }
         
@@ -2312,17 +3784,77 @@ canvas.addEventListener('click', (e) => {
 
         // Check if character was clicked
         const titleScreenChars = characters.filter(char => !char.inShop || (char.inShop && char.unlocked));
-        const characterSpacing = 120;
-        const startX = canvas.width / 2 - (titleScreenChars.length * characterSpacing) / 2;
+        const totalPages = Math.ceil(titleScreenChars.length / charsPerHomePage);
         
-        titleScreenChars.forEach((char, index) => {
-            const charX = startX + index * characterSpacing;
-            const charY = canvas.height / 2 + 30;
-            if (x >= charX - 35 && x <= charX + 35 &&
-                y >= charY - 35 && y <= charY + 35) {
-                selectedCharacter = index;
+        // Check for pagination buttons first
+        if (totalPages > 1) {
+            const paginationButtonWidth = 50;
+            const paginationButtonHeight = 50;
+            const paginationY = canvas.height / 2 + 30;
+            
+            // Calculate current page's characters
+            const startIndex = currentHomePage * charsPerHomePage;
+            const endIndex = Math.min(startIndex + charsPerHomePage, titleScreenChars.length);
+            const charsOnThisPage = endIndex - startIndex;
+            
+            // Calculate character spacing and starting position
+            const characterSpacing = 120;
+            const startX = canvas.width / 2 - (charsOnThisPage * characterSpacing) / 2;
+            
+            // Previous page button
+            if (currentHomePage > 0) {
+                const prevX = startX - characterSpacing;
+                if (x >= prevX - paginationButtonWidth/2 && 
+                    x <= prevX + paginationButtonWidth/2 && 
+                    y >= paginationY - paginationButtonHeight/2 && 
+                    y <= paginationY + paginationButtonHeight/2) {
+                    currentHomePage--;
+                    return;
+                }
             }
-        });
+            
+            // Next page button
+            if (currentHomePage < totalPages - 1) {
+                const nextX = startX + charsOnThisPage * characterSpacing;
+                if (x >= nextX - paginationButtonWidth/2 && 
+                    x <= nextX + paginationButtonWidth/2 && 
+                    y >= paginationY - paginationButtonHeight/2 && 
+                    y <= paginationY + paginationButtonHeight/2) {
+                    currentHomePage++;
+                    return;
+                }
+            }
+            
+            // Character selection on current page
+            for (let i = startIndex; i < endIndex; i++) {
+                const char = titleScreenChars[i];
+                const relativeIndex = i - startIndex;
+                const charX = startX + relativeIndex * characterSpacing;
+                const charY = paginationY;
+                
+                if (x >= charX - 35 && x <= charX + 35 &&
+                    y >= charY - 35 && y <= charY + 35) {
+                    // Find the character's actual index in the characters array
+                    const originalIndex = characters.indexOf(char);
+                    selectedCharacter = originalIndex;
+                    return;
+                }
+            }
+        } else {
+            // Original non-paginated character selection (for backward compatibility)
+            const characterSpacing = 120;
+            const startX = canvas.width / 2 - (titleScreenChars.length * characterSpacing) / 2;
+            
+            titleScreenChars.forEach((char, index) => {
+                const charX = startX + index * characterSpacing;
+                const charY = canvas.height / 2 + 30;
+                if (x >= charX - 35 && x <= charX + 35 &&
+                    y >= charY - 35 && y <= charY + 35) {
+                    const originalIndex = characters.indexOf(char);
+                    selectedCharacter = originalIndex;
+                }
+            });
+        }
     }
 });
 
@@ -2518,33 +4050,77 @@ canvas.addEventListener('touchstart', (e) => {
                 // Back button
                 if (x >= 20 && x <= 120 && y >= 20 && y <= 60) {
                     showShop = false;
+                    currentShopPage = 0; // Reset to first page when leaving shop
                     return;
                 }
                 
+                // Pagination controls
+                const buttonWidth = 150;
+                const buttonHeight = 50;
+                const buttonY = canvas.height - 80;
+                const totalPages = Math.ceil(characters.length / iconsPerPage);
+                
+                // Previous page button
+                if (currentShopPage > 0) {
+                    if (x >= canvas.width / 4 - buttonWidth / 2 && 
+                        x <= canvas.width / 4 + buttonWidth / 2 && 
+                        y >= buttonY && 
+                        y <= buttonY + buttonHeight) {
+                        if (currentShopPage > 0) {
+                            currentShopPage--;
+                        }
+                        return;
+                    }
+                }
+                
+                // Next page button
+                if (currentShopPage < totalPages - 1) {
+                    if (x >= canvas.width * 3/4 - buttonWidth / 2 && 
+                        x <= canvas.width * 3/4 + buttonWidth / 2 && 
+                        y >= buttonY && 
+                        y <= buttonY + buttonHeight) {
+                        const totalPages = Math.ceil(characters.length / iconsPerPage);
+                        if (currentShopPage < totalPages - 1) {
+                            currentShopPage++;
+                        }
+                        return;
+                    }
+                }
+                
                 // Shop touch handling
-                const gridSize = 4;
+                const gridCols = 4;
+                const gridRows = 3;
                 const itemWidth = 150;
                 const itemHeight = 150;
                 const padding = 20;
-                const startX = (canvas.width - (gridSize * (itemWidth + padding))) / 2;
-                const startY = 200;
+                const startX = (canvas.width - (gridCols * (itemWidth + padding))) / 2;
+                const startY = 220;
                 
-                characters.forEach((char, index) => {
-                    const row = Math.floor(index / gridSize);
-                    const col = index % gridSize;
+                // Calculate which icons to show on the current page
+                const startIndex = currentShopPage * iconsPerPage;
+                const endIndex = Math.min(startIndex + iconsPerPage, characters.length);
+                
+                // Check each character on the current page
+                for (let i = startIndex; i < endIndex; i++) {
+                    const char = characters[i];
+                    const relativeIndex = i - startIndex;
+                    const row = Math.floor(relativeIndex / gridCols);
+                    const col = relativeIndex % gridCols;
                     const itemX = startX + col * (itemWidth + padding);
                     const itemY = startY + row * (itemHeight + padding);
                     
                     if (x >= itemX && x <= itemX + itemWidth &&
                         y >= itemY && y <= itemY + itemHeight) {
                         if (!char.unlocked && coinCount >= char.price) {
-                            unlockCharacter(index);
+                            unlockCharacter(i);
                         } else if (char.unlocked) {
-                            selectedCharacter = index;
+                            selectedCharacter = i;
                             showShop = false;
+                            currentShopPage = 0; // Reset to first page when selecting
                         }
+                        return;
                     }
-                });
+                }
                 return;
             }
             
@@ -2566,7 +4142,88 @@ canvas.addEventListener('touchstart', (e) => {
                 return;
             }
             
-            // Start the game on touch elsewhere
+            // Check for character selection on home screen with pagination
+            const titleScreenChars = characters.filter(char => !char.inShop || (char.inShop && char.unlocked));
+            const totalPages = Math.ceil(titleScreenChars.length / charsPerHomePage);
+            
+            if (totalPages > 1) {
+                const paginationButtonWidth = 50;
+                const paginationButtonHeight = 50;
+                const paginationY = canvas.height / 2 + 30;
+                
+                // Calculate current page's characters
+                const startIndex = currentHomePage * charsPerHomePage;
+                const endIndex = Math.min(startIndex + charsPerHomePage, titleScreenChars.length);
+                const charsOnThisPage = endIndex - startIndex;
+                
+                // Calculate character spacing and starting position
+                const characterSpacing = 120;
+                const startX = canvas.width / 2 - (charsOnThisPage * characterSpacing) / 2;
+                
+                // Previous page button
+                if (currentHomePage > 0) {
+                    const prevX = startX - characterSpacing;
+                    if (x >= prevX - paginationButtonWidth/2 && 
+                        x <= prevX + paginationButtonWidth/2 && 
+                        y >= paginationY - paginationButtonHeight/2 && 
+                        y <= paginationY + paginationButtonHeight/2) {
+                        if (currentHomePage > 0) {
+                            currentHomePage--;
+                        }
+                        return;
+                    }
+                }
+                
+                // Next page button
+                if (currentHomePage < totalPages - 1) {
+                    const nextX = startX + charsOnThisPage * characterSpacing;
+                    if (x >= nextX - paginationButtonWidth/2 && 
+                        x <= nextX + paginationButtonWidth/2 && 
+                        y >= paginationY - paginationButtonHeight/2 && 
+                        y <= paginationY + paginationButtonHeight/2) {
+                        const totalHomePages = Math.ceil(titleScreenChars.length / charsPerHomePage);
+                        if (currentHomePage < totalHomePages - 1) {
+                            currentHomePage++;
+                        }
+                        return;
+                    }
+                }
+                
+                // Character selection on current page
+                for (let i = startIndex; i < endIndex; i++) {
+                    const char = titleScreenChars[i];
+                    const relativeIndex = i - startIndex;
+                    const charX = startX + relativeIndex * characterSpacing;
+                    const charY = paginationY;
+                    
+                    if (x >= charX - 35 && x <= charX + 35 &&
+                        y >= charY - 35 && y <= charY + 35) {
+                        // Find the character's actual index in the characters array
+                        const originalIndex = characters.indexOf(char);
+                        selectedCharacter = originalIndex;
+                        return;
+                    }
+                }
+            } else {
+                // Original non-paginated character selection for backward compatibility
+                const characterSpacing = 120;
+                const startX = canvas.width / 2 - (titleScreenChars.length * characterSpacing) / 2;
+                
+                for (let i = 0; i < titleScreenChars.length; i++) {
+                    const char = titleScreenChars[i];
+                    const charX = startX + i * characterSpacing;
+                    const charY = canvas.height / 2 + 30;
+                    
+                    if (x >= charX - 35 && x <= charX + 35 &&
+                        y >= charY - 35 && y <= charY + 35) {
+                        const originalIndex = characters.indexOf(char);
+                        selectedCharacter = originalIndex;
+                        return;
+                    }
+                }
+            }
+            
+            // If no character is selected, start the game
             gameState = 'playing';
             timerStarted = true;
             return;
@@ -2664,17 +4321,153 @@ document.addEventListener('keydown', (e) => {
     }
 
     if (gameState === 'home') {
+        if (showShop) {
+            // Handle shop keyboard controls
+            const totalPages = Math.ceil(characters.length / iconsPerPage);
+            
+            if (e.key === 'Escape' || e.key === 'Backspace') {
+                showShop = false;
+                currentShopPage = 0; // Reset to first page when leaving shop
+                return;
+            }
+            
+            // Navigation between pages
+            if (e.key === 'ArrowLeft' || e.key === 'a') {
+                if (currentShopPage > 0) {
+                    currentShopPage--;
+                }
+                return;
+            }
+            
+            if (e.key === 'ArrowRight' || e.key === 'd') {
+                if (currentShopPage < totalPages - 1) {
+                    currentShopPage++;
+                }
+                return;
+            }
+            
+            // Number keys to select items on the current page
+            const num = parseInt(e.key);
+            if (!isNaN(num) && num >= 1 && num <= 12) {
+                const itemIndex = currentShopPage * iconsPerPage + (num - 1);
+                
+                if (itemIndex < characters.length) {
+                    const char = characters[itemIndex];
+                    
+                    if (!char.unlocked && coinCount >= char.price) {
+                        unlockCharacter(itemIndex);
+                    } else if (char.unlocked) {
+                        selectedCharacter = itemIndex;
+                        showShop = false;
+                        currentShopPage = 0; // Reset to first page when selecting
+                    }
+                }
+                return;
+            }
+            
+            return;
+        }
+        
+        // Home screen navigation
         if (e.key === ' ' || e.key === 'Enter') {
             gameState = 'playing';
             timerStarted = true;
             return;
         }
-        if (e.key === 'ArrowLeft' || e.key === 'a') {
-            selectedCharacter = (selectedCharacter - 1 + characters.length) % characters.length;
+        
+        if (e.key === 's' || e.key === 'S') {
+            showShop = true;
             return;
         }
+        
+        // Get all available characters for home screen
+        const titleScreenChars = characters.filter(char => !char.inShop || (char.inShop && char.unlocked));
+        const totalPages = Math.ceil(titleScreenChars.length / charsPerHomePage);
+        
+        // Page navigation
+        if (totalPages > 1) {
+            if (e.key === 'PageUp' || (e.key === 'ArrowUp' && e.ctrlKey)) {
+                if (currentHomePage > 0) {
+                    currentHomePage--;
+                }
+                return;
+            }
+            
+            if (e.key === 'PageDown' || (e.key === 'ArrowDown' && e.ctrlKey)) {
+                if (currentHomePage < totalPages - 1) {
+                    currentHomePage++;
+                }
+                return;
+            }
+        }
+        
+        // Number keys to select characters on current page
+        const num = parseInt(e.key);
+        if (!isNaN(num) && num >= 1 && num <= charsPerHomePage) {
+            const startIndex = currentHomePage * charsPerHomePage;
+            const selectedIndex = startIndex + (num - 1);
+            
+            if (selectedIndex < titleScreenChars.length) {
+                const originalIndex = characters.indexOf(titleScreenChars[selectedIndex]);
+                selectedCharacter = originalIndex;
+                return;
+            }
+        }
+        
+        // Left/right arrows to cycle through characters
+        if (e.key === 'ArrowLeft' || e.key === 'a') {
+            // Get the index of the current character in the unlocked characters array
+            const currentIndex = titleScreenChars.indexOf(characters[selectedCharacter]);
+            
+            if (currentIndex > 0) {
+                // If not the first character on the page, select previous character
+                const originalIndex = characters.indexOf(titleScreenChars[currentIndex - 1]);
+                selectedCharacter = originalIndex;
+            } else if (currentHomePage > 0) {
+                // If first character on page and not the first page, go to previous page
+                currentHomePage--;
+                // Select the last character on the previous page
+                const startIndex = currentHomePage * charsPerHomePage;
+                const endIndex = Math.min(startIndex + charsPerHomePage, titleScreenChars.length);
+                const lastCharOnPrevPage = endIndex - 1;
+                const originalIndex = characters.indexOf(titleScreenChars[lastCharOnPrevPage]);
+                selectedCharacter = originalIndex;
+            } else {
+                // Wrap around to the last character
+                const originalIndex = characters.indexOf(titleScreenChars[titleScreenChars.length - 1]);
+                selectedCharacter = originalIndex;
+                // Go to the last page
+                currentHomePage = totalPages - 1;
+            }
+            return;
+        }
+        
         if (e.key === 'ArrowRight' || e.key === 'd') {
-            selectedCharacter = (selectedCharacter + 1) % characters.length;
+            // Get the index of the current character in the unlocked characters array
+            const currentIndex = titleScreenChars.indexOf(characters[selectedCharacter]);
+            
+            // Get the characters on the current page
+            const startIndex = currentHomePage * charsPerHomePage;
+            const endIndex = Math.min(startIndex + charsPerHomePage, titleScreenChars.length);
+            
+            if (currentIndex < endIndex - 1) {
+                // If not the last character on the page, select next character
+                const originalIndex = characters.indexOf(titleScreenChars[currentIndex + 1]);
+                selectedCharacter = originalIndex;
+            } else if (currentHomePage < totalPages - 1) {
+                // If last character on page and not the last page, go to next page
+                currentHomePage++;
+                // Select the first character on the next page
+                const nextPageStartIndex = currentHomePage * charsPerHomePage;
+                const originalIndex = characters.indexOf(titleScreenChars[nextPageStartIndex]);
+                selectedCharacter = originalIndex;
+            } else {
+                // Wrap around to the first character
+                const originalIndex = characters.indexOf(titleScreenChars[0]);
+                selectedCharacter = originalIndex;
+                // Go to the first page
+                currentHomePage = 0;
+            }
             return;
         }
     }
