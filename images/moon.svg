@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="moon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DDDDFF" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#AAAACC" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+  <path d="M40,5 C20,5 5,20 5,40 C5,60 20,75 40,75 C60,75 75,60 75,40 C75,35 74,30 72,25 C65,40 50,50 35,50 C20,50 10,40 10,25 C10,20 12,15 15,10 C22,7 30,5 40,5 Z" fill="url(#moon-gradient)"/>
+  <circle cx="20" cy="20" r="5" fill="#CCCCDD" fill-opacity="0.7"/>
+  <circle cx="40" cy="30" r="3" fill="#CCCCDD" fill-opacity="0.7"/>
+  <circle cx="55" cy="50" r="4" fill="#CCCCDD" fill-opacity="0.7"/>
+</svg>

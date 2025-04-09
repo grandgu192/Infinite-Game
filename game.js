@@ -1377,9 +1377,17 @@ let hasShield = false;
 let hasSpeedBoost = false;
 let hasDoubleJump = false;
 let hasMagnet = false;
+let hasInvincibility = false;
+let hasCoinMultiplier = false;
+let hasGravityReduction = false;
+let hasBounce = false;
 let powerUpTimer = 0;
 let doubleJumpTimer = 0;
 let magnetTimer = 0;
+let invincibilityTimer = 0;
+let coinMultiplierTimer = 0;
+let gravityReductionTimer = 0;
+let bounceTimer = 0;
 let jumpTrailParticles = [];
 let moveLeft = false;
 let moveRight = false;
@@ -1765,7 +1773,12 @@ function movePlayer() {
 
     // Apply gravity with smoothing (unless disabled in dev menu)
     if (!devOptions.noGravity) {
-        player.dy += gravity * 0.9;
+        // Apply reduced gravity if power-up is active
+        let gravityModifier = 0.9;
+        if (hasGravityReduction) {
+            gravityModifier = 0.4; // 60% reduction in gravity
+        }
+        player.dy += gravity * gravityModifier;
         player.dy *= 0.99; // Slight air resistance
     }
 
@@ -2032,7 +2045,26 @@ function detectCollision() {
                     player.friction = 0.92; // Less slippery than before (was 0.99)
                     break;
                 case 'bounce':
-                    player.dy = -20; // Extra bounce
+                    // Apply super bounce if power-up is active
+                    player.dy = hasBounce ? -30 : -20; // Extra bounce with power-up or normal
+                    
+                    // Create bounce effect particles
+                    const bounceColor = hasBounce ? '#FF1493' : '#FF69B4'; // Brighter for power-up bounce
+                    for (let i = 0; i < (hasBounce ? 20 : 10); i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 4 + 2;
+                        particles.push({
+                            x: player.x + player.width / 2,
+                            y: player.y + player.height,
+                            dx: Math.cos(angle) * speed,
+                            dy: Math.sin(angle) * speed - (hasBounce ? 4 : 2),
+                            radius: Math.random() * 3 + 2,
+                            color: bounceColor,
+                            alpha: 1,
+                            life: 0.8,
+                            gravity: 0.05
+                        });
+                    }
                     break;
                 case 'speed':
                     player.maxSpeed = 10; // Reduced speed boost (was 12)
@@ -2074,9 +2106,27 @@ function detectCollision() {
             playerRight > spike.x &&
             playerBottom > spike.y) {
             console.log("You've touched a spike");
-            if (!hasShield) {
+            // Player is protected if they have shield or invincibility
+            if (!hasShield && !hasInvincibility) {
                 gameOver = true;
                 resetGame();
+            } else {
+                // Create effect particles to show shield/invincibility protection
+                const protectionColor = hasInvincibility ? '#FFD700' : '#0080FF';
+                for (let i = 0; i < 10; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    particles.push({
+                        x: player.x + player.width / 2,
+                        y: player.y + player.height / 2,
+                        dx: Math.cos(angle) * 4,
+                        dy: Math.sin(angle) * 4,
+                        radius: Math.random() * 3 + 2,
+                        color: protectionColor,
+                        alpha: 1,
+                        life: 0.7,
+                        gravity: 0
+                    });
+                }
             }
         }
     });
@@ -2217,10 +2267,14 @@ function updatePlatforms() {
             
             // Randomize power-up type with different weights
             const powerUpTypes = [
-                { type: 'shield', weight: 25 },      // 25% chance
-                { type: 'speed', weight: 25 },       // 25% chance
-                { type: 'doubleJump', weight: 25 },  // 25% chance
-                { type: 'magnet', weight: 25 }       // 25% chance
+                { type: 'shield', weight: 15 },          // 15% chance
+                { type: 'speed', weight: 15 },           // 15% chance
+                { type: 'doubleJump', weight: 15 },      // 15% chance
+                { type: 'magnet', weight: 15 },          // 15% chance
+                { type: 'invincibility', weight: 10 },   // 10% chance (rare as it's powerful)
+                { type: 'coinMultiplier', weight: 10 },  // 10% chance
+                { type: 'gravityReduction', weight: 10 }, // 10% chance
+                { type: 'bounce', weight: 10 }           // 10% chance
             ];
             
             // Weighted random selection
@@ -2978,7 +3032,8 @@ function drawMobileControls() {
 
 function drawPowerUps() {
     // Draw active power-up indicators with enhanced icons
-    if (hasShield || hasSpeedBoost || hasDoubleJump || hasMagnet) {
+    if (hasShield || hasSpeedBoost || hasDoubleJump || hasMagnet || 
+        hasInvincibility || hasCoinMultiplier || hasGravityReduction || hasBounce) {
         const padding = 10;
         const iconSize = 30;
         let x = canvas.width - padding - iconSize;
@@ -3172,6 +3227,219 @@ function drawPowerUps() {
             ctx.fillStyle = '#FFF';
             ctx.font = '12px "Press Start 2P"';
             ctx.fillText(Math.ceil(powerUpTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
+        
+        // Draw invincibility power-up (if active)
+        if (hasInvincibility) {
+            // Invincibility indicator
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.7)'; // Gold for invincibility
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Star icon with glow for invincibility
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            
+            // Draw a star
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                const innerAngle = angle + Math.PI / 5;
+                const outerRadius = iconSize/3;
+                const innerRadius = iconSize/6;
+                
+                const outerX = x + Math.cos(angle) * outerRadius;
+                const outerY = padding + iconSize/2 + Math.sin(angle) * outerRadius;
+                const innerX = x + Math.cos(innerAngle) * innerRadius;
+                const innerY = padding + iconSize/2 + Math.sin(innerAngle) * innerRadius;
+                
+                if (i === 0) {
+                    ctx.moveTo(outerX, outerY);
+                } else {
+                    ctx.lineTo(outerX, outerY);
+                }
+                ctx.lineTo(innerX, innerY);
+            }
+            
+            ctx.closePath();
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#FFF';
+            ctx.fill();
+            
+            // Add sparkle effect
+            const time = Date.now() / 200;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            for (let i = 0; i < 3; i++) {
+                const sparkleAngle = time + i * Math.PI * 2/3;
+                const sparkleX = x + Math.cos(sparkleAngle) * (iconSize/2 - 4);
+                const sparkleY = padding + iconSize/2 + Math.sin(sparkleAngle) * (iconSize/2 - 4);
+                const sparkleSize = 1 + Math.sin(time * 2 + i) * 1;
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(invincibilityTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
+
+        // Draw coin multiplier power-up (if active)
+        if (hasCoinMultiplier) {
+            // Coin multiplier indicator
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.7)'; // Orange for coin multiplier
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Coin with x3 icon and glow
+            ctx.shadowColor = '#FFA500';
+            ctx.shadowBlur = 10;
+            
+            // Draw coin
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/4, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#FFD700';
+            ctx.fill();
+            
+            // Draw x3 text
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('x3', x, padding + iconSize/2 + 4);
+            
+            // Add coin sparkle effect
+            const time = Date.now() / 300;
+            for (let i = 0; i < 2; i++) {
+                const sparkleAngle = time + i * Math.PI;
+                const sparkleX = x + Math.cos(sparkleAngle) * (iconSize/4 - 2);
+                const sparkleY = padding + iconSize/2 + Math.sin(sparkleAngle) * (iconSize/4 - 2);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.shadowBlur = 0;
+            ctx.textAlign = 'left';
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(coinMultiplierTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
+        
+        // Draw gravity reduction power-up (if active)
+        if (hasGravityReduction) {
+            // Gravity reduction indicator
+            ctx.fillStyle = 'rgba(0, 191, 255, 0.7)'; // Deep sky blue for gravity
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Floating arrows icon with glow
+            ctx.shadowColor = '#00BFFF';
+            ctx.shadowBlur = 10;
+            
+            // Draw up arrows
+            ctx.beginPath();
+            ctx.moveTo(x - iconSize/4, padding + 3*iconSize/5);
+            ctx.lineTo(x, padding + 2*iconSize/5);
+            ctx.lineTo(x + iconSize/4, padding + 3*iconSize/5);
+            
+            ctx.moveTo(x - iconSize/6, padding + 2*iconSize/5);
+            ctx.lineTo(x, padding + iconSize/5);
+            ctx.lineTo(x + iconSize/6, padding + 2*iconSize/5);
+            
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Add floating particle effect
+            const time = Date.now() / 200;
+            for (let i = 0; i < 3; i++) {
+                const offset = (time + i * 5) % 20;
+                const particleY = padding + 3*iconSize/4 - offset;
+                const alpha = 1 - offset/20;
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(x, particleY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(gravityReductionTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
+        
+        // Draw bounce power-up (if active)
+        if (hasBounce) {
+            // Bounce indicator
+            ctx.fillStyle = 'rgba(255, 105, 180, 0.7)'; // Hot pink for bounce
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Bounce spring icon with glow
+            ctx.shadowColor = '#FF69B4';
+            ctx.shadowBlur = 10;
+            
+            // Draw spring
+            ctx.beginPath();
+            ctx.moveTo(x - iconSize/4, padding + 3*iconSize/4);
+            ctx.lineTo(x - iconSize/4, padding + 2*iconSize/3);
+            ctx.lineTo(x, padding + iconSize/2);
+            ctx.lineTo(x - iconSize/6, padding + 2*iconSize/5);
+            ctx.lineTo(x, padding + iconSize/3);
+            ctx.lineTo(x - iconSize/6, padding + iconSize/4);
+            ctx.lineTo(x, padding + iconSize/6);
+            ctx.lineTo(x + iconSize/4, padding + iconSize/4);
+            
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Add bounce effect with animation
+            const bounceHeight = Math.sin(Date.now() / 150) * 4;
+            ctx.beginPath();
+            ctx.arc(x + iconSize/6, padding + 3*iconSize/4 + bounceHeight, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFF';
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(bounceTimer/60), x - 10, padding + iconSize + 15);
         }
     }
 
@@ -3203,6 +3471,22 @@ function drawPowerUps() {
             case 'magnet':
                 glowColor = '#800080';
                 fillColor = 'rgba(128, 0, 128, 0.7)';
+                break;
+            case 'invincibility':
+                glowColor = '#FFD700';
+                fillColor = 'rgba(255, 215, 0, 0.7)';
+                break;
+            case 'coinMultiplier':
+                glowColor = '#FFA500';
+                fillColor = 'rgba(255, 165, 0, 0.7)';
+                break;
+            case 'gravityReduction':
+                glowColor = '#00BFFF';
+                fillColor = 'rgba(0, 191, 255, 0.7)';
+                break;
+            case 'bounce':
+                glowColor = '#FF69B4';
+                fillColor = 'rgba(255, 105, 180, 0.7)';
                 break;
             default:
                 glowColor = '#FFFFFF';
@@ -3269,6 +3553,68 @@ function drawPowerUps() {
                 ctx.lineTo(5, -8);
                 ctx.stroke();
                 break;
+            case 'invincibility':
+                // Star symbol for invincibility
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                    const innerAngle = angle + Math.PI / 5;
+                    const outerRadius = 8;
+                    const innerRadius = 4;
+                    
+                    // Draw outer point
+                    const outerX = Math.cos(angle) * outerRadius;
+                    const outerY = Math.sin(angle) * outerRadius;
+                    
+                    // Draw inner point
+                    const innerX = Math.cos(innerAngle) * innerRadius;
+                    const innerY = Math.sin(innerAngle) * innerRadius;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(outerX, outerY);
+                    } else {
+                        ctx.lineTo(outerX, outerY);
+                    }
+                    
+                    ctx.lineTo(innerX, innerY);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                break;
+            case 'coinMultiplier':
+                // Coin with x3 symbol
+                ctx.beginPath();
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.font = '8px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#FFF';
+                ctx.fillText('x3', 0, 3);
+                break;
+            case 'gravityReduction':
+                // Floating arrows up
+                ctx.beginPath();
+                ctx.moveTo(-5, 4);
+                ctx.lineTo(0, -4);
+                ctx.lineTo(5, 4);
+                ctx.moveTo(-3, 0);
+                ctx.lineTo(0, -8);
+                ctx.lineTo(3, 0);
+                ctx.stroke();
+                break;
+            case 'bounce':
+                // Bouncy spring
+                ctx.beginPath();
+                ctx.moveTo(-5, 8);
+                ctx.lineTo(-5, 5);
+                ctx.lineTo(0, 2);
+                ctx.lineTo(-3, 0);
+                ctx.lineTo(0, -2);
+                ctx.lineTo(-3, -4);
+                ctx.lineTo(0, -6);
+                ctx.lineTo(5, -8);
+                ctx.stroke();
+                break;
         }
 
         // Collection detection
@@ -3292,6 +3638,22 @@ function drawPowerUps() {
                 case 'magnet':
                     hasMagnet = true;
                     magnetTimer = 300;
+                    break;
+                case 'invincibility':
+                    hasInvincibility = true;
+                    invincibilityTimer = 200; // Shorter duration as it's more powerful
+                    break;
+                case 'coinMultiplier':
+                    hasCoinMultiplier = true;
+                    coinMultiplierTimer = 300;
+                    break;
+                case 'gravityReduction':
+                    hasGravityReduction = true;
+                    gravityReductionTimer = 250;
+                    break;
+                case 'bounce':
+                    hasBounce = true;
+                    bounceTimer = 300;
                     break;
             }
             
@@ -3428,6 +3790,38 @@ function update(currentTime) {
             hasMagnet = false;
         }
     }
+    
+    // Update invincibility timer
+    if (invincibilityTimer > 0) {
+        invincibilityTimer--;
+        if (invincibilityTimer === 0) {
+            hasInvincibility = false;
+        }
+    }
+    
+    // Update coin multiplier timer
+    if (coinMultiplierTimer > 0) {
+        coinMultiplierTimer--;
+        if (coinMultiplierTimer === 0) {
+            hasCoinMultiplier = false;
+        }
+    }
+    
+    // Update gravity reduction timer
+    if (gravityReductionTimer > 0) {
+        gravityReductionTimer--;
+        if (gravityReductionTimer === 0) {
+            hasGravityReduction = false;
+        }
+    }
+    
+    // Update bounce timer
+    if (bounceTimer > 0) {
+        bounceTimer--;
+        if (bounceTimer === 0) {
+            hasBounce = false;
+        }
+    }
 
     if (gameState === 'home') {
         drawHomeScreen();
@@ -3464,7 +3858,33 @@ function update(currentTime) {
             if (Math.abs(player.x + player.width/2 - coin.x) < 30 &&
                 Math.abs(player.y + player.height/2 - coin.y) < 30) {
                 coins.splice(index, 1);
-                coinCount += devOptions.tenXCoin ? 10 : 1;
+                
+                // Apply coin multiplier power-up or dev option
+                let coinMultiplier = 1;
+                if (devOptions.tenXCoin) coinMultiplier = 10;
+                else if (hasCoinMultiplier) coinMultiplier = 3; 
+                
+                const coinsToAdd = coinMultiplier;
+                coinCount += coinsToAdd;
+                
+                // Create coin collection effect based on multiplier
+                for (let i = 0; i < coinsToAdd; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 3 + 1;
+                    particles.push({
+                        x: coin.x,
+                        y: coin.y,
+                        dx: Math.cos(angle) * speed,
+                        dy: Math.sin(angle) * speed * 0.5 - 2, // More upward
+                        radius: Math.random() * 3 + 2,
+                        color: hasCoinMultiplier ? '#FFA500' : '#FFD700', // Orange for multiplier, gold for normal
+                        alpha: 1,
+                        life: 0.8,
+                        gravity: 0.05
+                    });
+                }
+                
+                playSound('coin');
             }
         });
 

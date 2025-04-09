@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="120" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cloud-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#E0E0E0" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <path d="M25,75 C10,75 0,65 0,50 C0,35 10,25 25,25 C30,10 45,0 60,0 C80,0 95,15 100,35 C105,30 115,30 120,35 C140,30 160,40 170,55 C190,55 200,65 200,80 C200,95 190,105 170,105 C160,115 130,120 115,110 C105,120 85,120 75,110 C60,120 40,120 25,105 C10,105 0,90 0,75 C0,60 10,50 25,50 C25,60 25,65 25,75 Z" fill="url(#cloud-gradient)"/>
+</svg>
