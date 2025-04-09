@@ -16,6 +16,16 @@ let showShop = false;
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let showMobileControls = isMobile;
 
+// Character emotion system variables
+let playerEmotion = 'neutral'; // Current emotion: neutral, happy, excited, scared, sad, proud
+let emotionIntensity = 0.5; // How intense the emotion is (0.0 to 1.0)
+let emotionTimer = 0; // How long the current emotion lasts
+let emotionQueue = []; // Queue of upcoming emotions to blend through
+let lastEmotionTrigger = 0; // Timestamp of last emotion change (to prevent rapid changes)
+let facialAnimationTime = 0; // For tracking facial animations
+let blinkTimer = 0; // For eye blinking animation
+let isBlinking = false; // Whether character is currently blinking
+
 // Dev menu options
 let devOptions = {
     tenXScore: false,
@@ -1646,11 +1656,116 @@ function drawPlayer() {
 
     // Draw shield effect
     if (hasShield) {
+        // Draw an animated shield bubble
         ctx.beginPath();
         ctx.arc(player.width/2, player.height/2, player.width * 0.8, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 100, 255, 0.5)';
+        
+        // Create animated gradient for shield
+        const shieldGradient = ctx.createRadialGradient(
+            player.width/2, player.height/2, player.width * 0.4,
+            player.width/2, player.height/2, player.width * 0.8
+        );
+        shieldGradient.addColorStop(0, 'rgba(0, 120, 255, 0.0)');
+        shieldGradient.addColorStop(0.7, 'rgba(0, 150, 255, 0.2)');
+        shieldGradient.addColorStop(1, 'rgba(0, 200, 255, 0.5)');
+        
+        ctx.fillStyle = shieldGradient;
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.7)';
         ctx.lineWidth = 3;
         ctx.stroke();
+        
+        // Add shield energy ripples
+        const time = Date.now() / 200;
+        for (let i = 0; i < 3; i++) {
+            const pulseSize = ((time + i * 2) % 10) / 10;
+            if (pulseSize < 0.9) { // Don't draw when too close to edge
+                ctx.beginPath();
+                ctx.arc(
+                    player.width/2, 
+                    player.height/2, 
+                    player.width * 0.4 + pulseSize * player.width * 0.4, 
+                    0, 
+                    Math.PI * 2
+                );
+                ctx.strokeStyle = `rgba(100, 200, 255, ${0.5 - pulseSize * 0.5})`;
+                ctx.lineWidth = 2 - pulseSize;
+                ctx.stroke();
+            }
+        }
+    }
+    
+    // Draw invincibility effect
+    if (hasInvincibility) {
+        // Add star sparkles circling around the player
+        const time = Date.now() / 100;
+        const numStars = 8;
+        
+        for (let i = 0; i < numStars; i++) {
+            const angle = (time * 0.2 + i * (Math.PI * 2 / numStars)) % (Math.PI * 2);
+            const distance = player.width * 0.9 + Math.sin(time * 0.5 + i) * 5;
+            
+            const x = player.width/2 + Math.cos(angle) * distance;
+            const y = player.height/2 + Math.sin(angle) * distance;
+            
+            // Draw star
+            const starSize = 3 + Math.sin(time + i) * 1.5;
+            
+            // Draw 5-point star
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(time * 0.05 + i);
+            
+            ctx.beginPath();
+            for (let j = 0; j < 5; j++) {
+                const starAngle = j * Math.PI * 2 / 5 - Math.PI / 2;
+                const starX = Math.cos(starAngle) * starSize;
+                const starY = Math.sin(starAngle) * starSize;
+                
+                if (j === 0) {
+                    ctx.moveTo(starX, starY);
+                } else {
+                    ctx.lineTo(starX, starY);
+                }
+                
+                // Draw inner points of star
+                const innerAngle = starAngle + Math.PI / 5;
+                const innerX = Math.cos(innerAngle) * (starSize / 2.5);
+                const innerY = Math.sin(innerAngle) * (starSize / 2.5);
+                ctx.lineTo(innerX, innerY);
+            }
+            
+            ctx.closePath();
+            
+            // Create shimmering color effect
+            const hue = (time * 5 + i * 30) % 360;
+            ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Add invincibility glow around player
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.beginPath();
+        ctx.arc(player.width/2, player.height/2, player.width * 0.7, 0, Math.PI * 2);
+        
+        const invincibilityGlow = ctx.createRadialGradient(
+            player.width/2, player.height/2, player.width * 0.3,
+            player.width/2, player.height/2, player.width * 0.7
+        );
+        
+        // Multi-color invincibility glow
+        const timeHue = (time * 5) % 360;
+        invincibilityGlow.addColorStop(0, `hsla(${timeHue}, 100%, 70%, 0.1)`);
+        invincibilityGlow.addColorStop(0.7, `hsla(${(timeHue + 40) % 360}, 100%, 60%, 0.05)`);
+        invincibilityGlow.addColorStop(1, `hsla(${(timeHue + 80) % 360}, 100%, 50%, 0)`);
+        
+        ctx.fillStyle = invincibilityGlow;
+        ctx.fill();
+        ctx.restore();
     }
 
     // Add smooth stretch effect when jumping
@@ -1673,36 +1788,139 @@ function drawPlayer() {
     let stretchWidth = player.currentWidth;
     let stretchHeight = player.currentHeight;
 
-    // Create gradient for player using selected character colors
-    const gradient = ctx.createLinearGradient(0, 0, 0, stretchHeight);
-    gradient.addColorStop(0, characters[selectedCharacter].color1);
-    gradient.addColorStop(1, characters[selectedCharacter].color2);
-
-    // Draw rounded rectangle with stretch effect
+    // Body positioning
+    const bodyX = (player.width - stretchWidth) / 2;
+    const bodyY = (player.height - stretchHeight) / 2;
+    const character = characters[selectedCharacter];
+    
+    // Draw shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
     ctx.beginPath();
     ctx.roundRect(
-        (player.width - stretchWidth) / 2,
-        (player.height - stretchHeight) / 2,
+        bodyX + 4,
+        bodyY + 4,
+        stretchWidth,
+        stretchHeight,
+        10
+    );
+    ctx.fill();
+    
+    // Create gradient for player 
+    let gradient;
+    if (character.gradient) {
+        // Use custom gradient if available
+        gradient = character.gradient(ctx, bodyX, bodyY, stretchWidth, stretchHeight);
+    } else {
+        // Use default linear gradient
+        gradient = ctx.createLinearGradient(0, 0, 0, stretchHeight);
+        gradient.addColorStop(0, character.color1);
+        gradient.addColorStop(1, character.color2);
+    }
+
+    // Draw main body with rounded corners, shading and highlights
+    ctx.beginPath();
+    ctx.roundRect(
+        bodyX,
+        bodyY,
         stretchWidth,
         stretchHeight,
         10
     );
     ctx.fillStyle = gradient;
     ctx.fill();
-
-    // Add eyes
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(player.width * 0.3, player.height * 0.3, 5, 0, Math.PI * 2);
-    ctx.arc(player.width * 0.7, player.height * 0.3, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Add smile
-    ctx.beginPath();
-    ctx.arc(player.width * 0.5, player.height * 0.5, 15, 0, Math.PI);
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
+    
+    // Add border/outline
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+    
+    // Add a shine effect at the top
+    const shineGradient = ctx.createLinearGradient(
+        bodyX, 
+        bodyY, 
+        bodyX, 
+        bodyY + stretchHeight * 0.3);
+    shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+    shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.beginPath();
+    ctx.roundRect(
+        bodyX + 2,
+        bodyY + 2,
+        stretchWidth - 4,
+        stretchHeight * 0.25,
+        7
+    );
+    ctx.fillStyle = shineGradient;
+    ctx.fill();
+    
+    // Draw the character's expression using the emotion system
+    drawCharacterExpression(ctx, bodyX, bodyY, stretchWidth, stretchHeight, player);
+    
+    // Add character-specific details based on type
+    if (character.name === 'Lava Cube') {
+        // Draw flame particles on top
+        for (let i = 0; i < 3; i++) {
+            const flameX = bodyX + stretchWidth * (0.25 + 0.25 * i);
+            const flameHeight = Math.sin(Date.now() / 200 + i * 2) * 5 + 10;
+            
+            const flameGradient = ctx.createLinearGradient(0, bodyY - flameHeight, 0, bodyY);
+            flameGradient.addColorStop(0, 'rgba(255, 255, 0, 0.7)');
+            flameGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.fillStyle = flameGradient;
+            ctx.beginPath();
+            ctx.moveTo(flameX - 5, bodyY);
+            ctx.quadraticCurveTo(flameX, bodyY - flameHeight * 2, flameX + 5, bodyY);
+            ctx.fill();
+        }
+    } else if (character.name === 'Water Cube') {
+        // Draw water droplets
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.5)';
+        for (let i = 0; i < 2; i++) {
+            const dropX = bodyX + stretchWidth * (0.3 + 0.4 * i);
+            const dropY = bodyY + stretchHeight * 0.9;
+            const dropSize = 4 + Math.sin(Date.now() / 300 + i * 2) * 2;
+            
+            ctx.beginPath();
+            ctx.arc(dropX, dropY, dropSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (character.name === 'Galaxy Cube') {
+        // Add star particles
+        for (let i = 0; i < 5; i++) {
+            const starX = bodyX + Math.random() * stretchWidth;
+            const starY = bodyY + Math.random() * stretchHeight;
+            const starSize = Math.random() * 2 + 1;
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.7 + 0.3})`;
+            ctx.beginPath();
+            ctx.arc(starX, starY, starSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (character.name === 'Magic Cube') {
+        // Add magic sparkles
+        for (let i = 0; i < 3; i++) {
+            const sparkleX = bodyX + stretchWidth * (0.25 + 0.25 * i);
+            const sparkleY = bodyY + stretchHeight * (0.2 + 0.3 * i);
+            const sparkleSize = 3 + Math.sin(Date.now() / 200 + i * 2) * 2;
+            
+            ctx.fillStyle = `hsl(${(Date.now() / 30 + i * 40) % 360}, 100%, 70%)`;
+            ctx.beginPath();
+            ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (character.name === 'Gold Cube') {
+        // Add gold shine effect
+        const shineAngle = Date.now() / 500;
+        const shineX = bodyX + stretchWidth/2 + Math.cos(shineAngle) * (stretchWidth/3);
+        const shineY = bodyY + stretchHeight/2 + Math.sin(shineAngle) * (stretchHeight/3);
+        
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.8)';
+        ctx.beginPath();
+        ctx.arc(shineX, shineY, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     ctx.restore();
 }
@@ -1884,82 +2102,214 @@ function loadScore() {
 
 // Function to show score share prompt after game over
 function drawSharePrompt() {
+    // Semi-transparent background with background effects
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Add decorative background
+    const gradient = ctx.createRadialGradient(
+        canvas.width/2, canvas.height/2, 50, 
+        canvas.width/2, canvas.height/2, canvas.height
+    );
+    gradient.addColorStop(0, 'rgba(50, 50, 100, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add animated particles in background
+    const time = Date.now();
+    for (let i = 0; i < 30; i++) {
+        const baseX = canvas.width * (i % 10) / 10;
+        const baseY = canvas.height * Math.floor(i / 10) / 3;
+        const offsetX = Math.sin(time / 2000 + i * 0.3) * 50;
+        const offsetY = Math.cos(time / 2500 + i * 0.2) * 30;
+        const x = baseX + offsetX;
+        const y = baseY + offsetY;
+        
+        const size = 1 + Math.sin(time / 1000 + i) * 1.5;
+        const alpha = 0.2 + Math.sin(time / 700 + i * 0.5) * 0.1;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Game over text with glow
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.7)';
+    ctx.shadowBlur = 15;
     ctx.fillStyle = 'white';
     ctx.font = '40px "Press Start 2P"';
     ctx.textAlign = 'center';
     ctx.fillText('GAME OVER', canvas.width / 2, 100);
+    ctx.shadowBlur = 0;
+    
+    // Score container with background
+    ctx.fillStyle = 'rgba(50, 50, 100, 0.4)';
+    ctx.fillRect(canvas.width/2 - 200, 130, 400, 80);
+    
+    // Score outline
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(canvas.width/2 - 200, 130, 400, 80);
     
     // Show final score
+    ctx.fillStyle = 'white';
     ctx.font = '30px "Press Start 2P"';
     ctx.fillText(`Score: ${score}`, canvas.width / 2, 180);
     
     // Add celebratory message if it's a high score
     if (newHighScoreAchieved) {
-        ctx.fillStyle = '#FFD700'; // Gold color for high score
+        // High score ribbon
+        ctx.save();
+        ctx.translate(canvas.width / 2, 240);
+        
+        // Ribbon banner
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.moveTo(-180, -20);
+        ctx.lineTo(180, -20);
+        ctx.lineTo(200, 0);
+        ctx.lineTo(180, 20);
+        ctx.lineTo(-180, 20);
+        ctx.lineTo(-200, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Banner shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 5;
+        
+        // High score text
+        ctx.fillStyle = '#800000';
         ctx.font = '25px "Press Start 2P"';
-        ctx.fillText('NEW HIGH SCORE!', canvas.width / 2, 240);
+        ctx.fillText('NEW HIGH SCORE!', 0, 7);
+        ctx.restore();
         
         // Animated sparkles around the text
-        const time = Date.now() / 200;
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2 + time;
-            const dist = 80 + Math.sin(time * 2 + i) * 10;
+        const sparkleTime = Date.now() / 200;
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2 + sparkleTime;
+            const dist = 220 + Math.sin(sparkleTime * 2 + i) * 15;
             const x = canvas.width / 2 + Math.cos(angle) * dist;
             const y = 240 + Math.sin(angle) * 30;
             
-            const size = 3 + Math.sin(time * 3 + i * 0.7) * 2;
-            ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + Math.sin(time + i) * 0.4})`;
+            const size = 3 + Math.sin(sparkleTime * 3 + i * 0.7) * 2;
+            
+            // Create a star shape
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(sparkleTime / 2 + i);
+            
+            ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + Math.sin(sparkleTime + i) * 0.4})`;
             ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
+            for (let j = 0; j < 5; j++) {
+                const starAngle = (j * 2 * Math.PI / 5) - Math.PI / 2;
+                const innerAngle = starAngle + Math.PI / 5;
+                const outerRadius = size * 2;
+                const innerRadius = size;
+                
+                const outerX = Math.cos(starAngle) * outerRadius;
+                const outerY = Math.sin(starAngle) * outerRadius;
+                
+                const innerX = Math.cos(innerAngle) * innerRadius;
+                const innerY = Math.sin(innerAngle) * innerRadius;
+                
+                if (j === 0) {
+                    ctx.moveTo(outerX, outerY);
+                } else {
+                    ctx.lineTo(outerX, outerY);
+                }
+                
+                ctx.lineTo(innerX, innerY);
+            }
+            ctx.closePath();
             ctx.fill();
+            ctx.restore();
         }
     }
     
-    // Draw sharing options
+    // Social sharing title
     ctx.fillStyle = 'white';
-    ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Share your score?', canvas.width / 2, 320);
+    ctx.font = '22px "Press Start 2P"';
+    ctx.fillText('Share your achievement!', canvas.width / 2, 320);
     
-    // Draw buttons for sharing
+    // Social media sharing grid
+    const shareLinks = generateShareURL({
+        score: score,
+        character: characters[selectedCharacter].name,
+        date: new Date().toLocaleDateString()
+    });
+    
+    const iconsPerRow = 3;
+    const buttonSize = 90;
+    const buttonMargin = 20;
+    const startX = canvas.width/2 - ((buttonSize * iconsPerRow) + buttonMargin * (iconsPerRow - 1))/2;
+    const startY = 350;
+    
+    const platformData = [
+        { name: 'Twitter', color: '#1DA1F2', icon: '🐦', link: shareLinks.twitter },
+        { name: 'Facebook', color: '#4267B2', icon: 'f', link: shareLinks.facebook },
+        { name: 'LinkedIn', color: '#0077B5', icon: 'in', link: shareLinks.linkedin },
+        { name: 'Reddit', color: '#FF4500', icon: '🔄', link: shareLinks.reddit },
+        { name: 'WhatsApp', color: '#25D366', icon: '💬', link: shareLinks.whatsapp },
+        { name: 'Copy Link', color: '#6c757d', icon: '🔗', link: null }
+    ];
+    
+    // Draw social buttons in a grid
+    for (let i = 0; i < platformData.length; i++) {
+        const row = Math.floor(i / iconsPerRow);
+        const col = i % iconsPerRow;
+        
+        const x = startX + (buttonSize + buttonMargin) * col;
+        const y = startY + (buttonSize + buttonMargin) * row;
+        
+        const platform = platformData[i];
+        
+        // Button background with rounded corners
+        ctx.fillStyle = platform.color;
+        ctx.beginPath();
+        ctx.roundRect(x, y, buttonSize, buttonSize, 10);
+        ctx.fill();
+        
+        // Platform icon
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.fillText(platform.icon, x + buttonSize/2, y + buttonSize/2 - 5);
+        
+        // Platform name
+        ctx.font = '12px "Press Start 2P"';
+        ctx.fillText(platform.name, x + buttonSize/2, y + buttonSize - 12);
+    }
+    
+    // Play again button
     const buttonWidth = 250;
     const buttonHeight = 50;
     const buttonX = canvas.width / 2 - buttonWidth / 2;
-    const buttonSpacing = 70;
+    const buttonY = startY + Math.ceil(platformData.length / iconsPerRow) * (buttonSize + buttonMargin) + 30;
     
-    // Twitter button
-    let buttonY = 370;
-    ctx.fillStyle = '#1DA1F2'; // Twitter blue
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    // Button with glow effect
+    const pulseAmount = Math.sin(Date.now() / 400) * 0.2;
+    const buttonColor = `rgba(40, 167, 69, ${0.8 + pulseAmount})`;
+    
+    // Draw play again button with subtle animation
+    ctx.fillStyle = buttonColor;
+    ctx.beginPath();
+    ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight, 10);
+    ctx.fill();
+    
+    // Add inner glow
+    const buttonGlow = ctx.createLinearGradient(buttonX, buttonY, buttonX, buttonY + buttonHeight);
+    buttonGlow.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+    buttonGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = buttonGlow;
+    ctx.beginPath();
+    ctx.roundRect(buttonX, buttonY, buttonWidth, buttonHeight/2, [10, 10, 0, 0]);
+    ctx.fill();
     
     ctx.fillStyle = 'white';
     ctx.font = '18px "Press Start 2P"';
-    ctx.fillText('Twitter', canvas.width / 2, buttonY + 32);
-    
-    // Facebook button
-    buttonY += buttonSpacing;
-    ctx.fillStyle = '#4267B2'; // Facebook blue
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-    
-    ctx.fillStyle = 'white';
-    ctx.fillText('Facebook', canvas.width / 2, buttonY + 32);
-    
-    // Copy text button
-    buttonY += buttonSpacing;
-    ctx.fillStyle = '#6c757d'; // Gray
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-    
-    ctx.fillStyle = 'white';
-    ctx.fillText('Copy Text', canvas.width / 2, buttonY + 32);
-    
-    // Play again button
-    buttonY += buttonSpacing + 20;
-    ctx.fillStyle = '#28a745'; // Green
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-    
-    ctx.fillStyle = 'white';
     ctx.fillText('Play Again', canvas.width / 2, buttonY + 32);
 }
 
@@ -2455,11 +2805,25 @@ function generateShareURL(score) {
     const baseURL = window.location.href.split('?')[0]; // Remove any existing query params
     const shareText = `I scored ${score.score} points with ${score.character} in Platform Runner! Can you beat my score?`;
     const encodedText = encodeURIComponent(shareText);
+    const encodedURL = encodeURIComponent(baseURL);
+    
+    // Create a URL with score data embedded as query parameters
+    const gameURL = `${baseURL}?score=${score.score}&character=${encodeURIComponent(score.character)}`;
+    const encodedGameURL = encodeURIComponent(gameURL);
+    
+    // Generate hash tag for social media
+    const hashTags = encodeURIComponent('PlatformRunner,HighScore,Gaming');
     
     return {
-        twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodeURIComponent(baseURL)}`,
-        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(baseURL)}&quote=${encodedText}`,
-        shareText: shareText
+        twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedGameURL}&hashtags=${hashTags}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedGameURL}&quote=${encodedText}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedGameURL}&title=${encodeURIComponent('Platform Runner High Score')}`,
+        reddit: `https://www.reddit.com/submit?url=${encodedGameURL}&title=${encodedText}`,
+        whatsapp: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedGameURL}`,
+        telegram: `https://t.me/share/url?url=${encodedGameURL}&text=${encodedText}`,
+        email: `mailto:?subject=${encodeURIComponent('My Platform Runner Score!')}&body=${encodedText}%0A%0AClick here to try: ${encodedGameURL}`,
+        shareText: shareText,
+        gameURL: gameURL
     };
 }
 
@@ -2596,65 +2960,164 @@ function drawHighScoresScreen() {
 
 // Function to draw the sharing overlay
 function drawShareOverlay(score) {
-    // Semi-transparent background
+    // Semi-transparent background with gradients for aesthetic appeal
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Title
+    // Add decorative background elements
+    const gradient = ctx.createRadialGradient(
+        canvas.width/2, canvas.height/2, 50, 
+        canvas.width/2, canvas.height/2, 400
+    );
+    gradient.addColorStop(0, 'rgba(50, 50, 100, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add animated stars in background
+    const time = Date.now() / 1000;
+    for (let i = 0; i < 20; i++) {
+        const x = canvas.width * (0.1 + (i * 0.9) % 0.8);
+        const y = canvas.height * ((i * 0.7) % 0.7 + 0.1);
+        const size = 1 + Math.sin(time + i) * 2;
+        const alpha = 0.2 + Math.sin(time * 2 + i) * 0.1;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Title with glow effect
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+    ctx.shadowBlur = 15;
     ctx.fillStyle = 'white';
     ctx.font = '30px "Press Start 2P"';
     ctx.textAlign = 'center';
     ctx.fillText('SHARE YOUR SCORE', canvas.width / 2, 80);
+    ctx.shadowBlur = 0;
     
-    // Score details
+    // Score details with highlight box
+    ctx.fillStyle = 'rgba(50, 50, 100, 0.4)';
+    ctx.fillRect(canvas.width/2 - 250, 110, 500, 130);
+    
+    // Outline for score details
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(canvas.width/2 - 250, 110, 500, 130);
+    
+    ctx.fillStyle = 'white';
     ctx.font = '20px "Press Start 2P"';
-    ctx.fillText(`Score: ${score.score}`, canvas.width / 2, 140);
-    ctx.fillText(`Character: ${score.character}`, canvas.width / 2, 180);
-    ctx.fillText(`Date: ${score.date}`, canvas.width / 2, 220);
+    ctx.fillText(`Score: ${score.score}`, canvas.width / 2, 150);
+    ctx.fillText(`Character: ${score.character}`, canvas.width / 2, 190);
+    ctx.fillText(`Date: ${score.date}`, canvas.width / 2, 230);
     
     const shareLinks = generateShareURL(score);
     
-    // Draw share buttons
-    const buttonWidth = 300;
-    const buttonHeight = 60;
-    const buttonX = canvas.width / 2 - buttonWidth / 2;
-    const buttonSpacing = 80;
+    // Social media icons with grid layout
+    const iconsPerRow = 2;
+    const buttonSize = 120;
+    const buttonMargin = 20;
+    const startX = canvas.width/2 - ((buttonSize * iconsPerRow) + buttonMargin * (iconsPerRow - 1))/2;
+    const startY = 280;
+    const platformData = [
+        { name: 'Twitter', color: '#1DA1F2', icon: '🐦' },
+        { name: 'Facebook', color: '#4267B2', icon: 'f' },
+        { name: 'LinkedIn', color: '#0077B5', icon: 'in' },
+        { name: 'Reddit', color: '#FF4500', icon: '🔄' },
+        { name: 'WhatsApp', color: '#25D366', icon: '💬' },
+        { name: 'Telegram', color: '#0088cc', icon: '📤' }
+    ];
     
-    // Twitter button
-    let buttonY = 280;
-    ctx.fillStyle = '#1DA1F2'; // Twitter blue
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-    
+    // Add QR code for score
     ctx.fillStyle = 'white';
-    ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Twitter', canvas.width / 2, buttonY + 35);
+    ctx.fillRect(canvas.width - 150, 20, 120, 120);
     
-    // Facebook button
-    buttonY += buttonSpacing;
-    ctx.fillStyle = '#4267B2'; // Facebook blue
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    // Draw "fake" QR code pattern (simulated)
+    ctx.fillStyle = 'black';
+    ctx.fillRect(canvas.width - 140, 30, 100, 100);
     
+    // Draw QR code elements
+    for (let i = 0; i < 7; i++) {
+        for (let j = 0; j < 7; j++) {
+            if (Math.random() > 0.6 && !(i < 2 && j < 2) && !(i < 2 && j > 4) && !(i > 4 && j < 2)) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(canvas.width - 138 + i*14, 32 + j*14, 12, 12);
+            }
+        }
+    }
+    
+    // QR corner squares
     ctx.fillStyle = 'white';
-    ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Facebook', canvas.width / 2, buttonY + 35);
+    ctx.fillRect(canvas.width - 134, 34, 28, 28);
+    ctx.fillRect(canvas.width - 134, 98, 28, 28);
+    ctx.fillRect(canvas.width - 74, 34, 28, 28);
+    
+    ctx.fillStyle = 'black';
+    ctx.fillRect(canvas.width - 130, 38, 20, 20);
+    ctx.fillRect(canvas.width - 130, 102, 20, 20);
+    ctx.fillRect(canvas.width - 70, 38, 20, 20);
+    
+    // QR Label
+    ctx.fillStyle = 'black';
+    ctx.font = '12px "Press Start 2P"';
+    ctx.fillText('SHARE', canvas.width - 90, 150);
+    
+    // Draw share platforms in a grid
+    for (let i = 0; i < platformData.length; i++) {
+        const row = Math.floor(i / iconsPerRow);
+        const col = i % iconsPerRow;
+        
+        const platform = platformData[i];
+        const x = startX + (buttonSize + buttonMargin) * col;
+        const y = startY + (buttonSize + buttonMargin) * row;
+        
+        // Platform icon
+        ctx.fillStyle = platform.color;
+        ctx.beginPath();
+        ctx.roundRect(x, y, buttonSize, buttonSize, 15);
+        ctx.fill();
+        
+        // Icon text
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.fillText(platform.icon, x + buttonSize/2, y + buttonSize/2 - 5);
+        
+        // Platform name
+        ctx.font = '14px "Press Start 2P"';
+        ctx.fillText(platform.name, x + buttonSize/2, y + buttonSize - 15);
+    }
     
     // Copy link button
-    buttonY += buttonSpacing;
-    ctx.fillStyle = '#6c757d'; // Gray
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    const copyY = startY + Math.ceil(platformData.length / iconsPerRow) * (buttonSize + buttonMargin) + 20;
+    ctx.fillStyle = '#6c757d';
+    ctx.beginPath();
+    ctx.roundRect(canvas.width/2 - 150, copyY, 300, 50, 10);
+    ctx.fill();
     
     ctx.fillStyle = 'white';
-    ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Copy Text', canvas.width / 2, buttonY + 35);
+    ctx.font = '16px "Press Start 2P"';
+    ctx.fillText('Copy Link', canvas.width/2, copyY + 30);
     
-    // Back button
-    buttonY += buttonSpacing + 20;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    // Cancel button with hover effect
+    const cancelY = copyY + 70;
+    
+    // Button glow effect
+    const pulseAmount = Math.sin(Date.now() / 300) * 0.2;
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + pulseAmount})`;
+    ctx.beginPath();
+    ctx.roundRect(canvas.width/2 - 100, cancelY, 200, 50, 10);
+    ctx.fill();
+    
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(canvas.width/2 - 100, cancelY, 200, 50, 10);
+    ctx.stroke();
     
     ctx.fillStyle = 'white';
-    ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Cancel', canvas.width / 2, buttonY + 35);
+    ctx.font = '16px "Press Start 2P"';
+    ctx.fillText('Close', canvas.width/2, cancelY + 30);
 }
 
 // Add state for pagination
@@ -3503,63 +3966,203 @@ function drawPowerUps() {
         ctx.arc(0, 0, Math.abs(15 + pulseSize), 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw a symbol inside based on the power-up type
+        // Draw a symbol inside based on the power-up type with enhanced visuals
         ctx.strokeStyle = '#FFF';
         ctx.lineWidth = 2;
         
+        // Add floating animation
+        const floatOffset = Math.sin(Date.now() / 300) * 2;
+        ctx.translate(0, floatOffset);
+        
+        // Add spinning rotation for specific power-ups
+        const rotationSpeed = Date.now() / 1000;
+        
+        ctx.save(); // Save the context state before any transformations
+        
         switch(powerUp.type) {
             case 'shield':
-                // Shield symbol
+                // Shield symbol - filled with gradient
                 ctx.beginPath();
                 ctx.moveTo(0, -8);
                 ctx.lineTo(-8, 0);
                 ctx.lineTo(0, 8);
                 ctx.lineTo(8, 0);
                 ctx.closePath();
+                
+                // Fill with gradient
+                const shieldGradient = ctx.createLinearGradient(0, -8, 0, 8);
+                shieldGradient.addColorStop(0, '#0066FF');
+                shieldGradient.addColorStop(1, '#00BFFF');
+                ctx.fillStyle = shieldGradient;
+                ctx.fill();
+                ctx.stroke();
+                
+                // Add inner detail
+                ctx.beginPath();
+                ctx.moveTo(0, -4);
+                ctx.lineTo(-4, 0);
+                ctx.lineTo(0, 4);
+                ctx.lineTo(4, 0);
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.stroke();
                 break;
+                
             case 'speed':
-                // Lightning bolt
+                // Lightning bolt with electric effect
+                ctx.save();
+                
+                // Draw lightning bolt with gradient
+                const boltGradient = ctx.createLinearGradient(-4, -8, 4, 8);
+                boltGradient.addColorStop(0, '#FFFF00');
+                boltGradient.addColorStop(1, '#FFA500');
+                ctx.fillStyle = boltGradient;
+                
                 ctx.beginPath();
                 ctx.moveTo(4, -8);
                 ctx.lineTo(-4, 0);
                 ctx.lineTo(2, 0);
                 ctx.lineTo(-4, 8);
+                ctx.lineTo(0, 3);
+                ctx.lineTo(-2, 3);
+                ctx.lineTo(4, -8);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
+                
+                // Add electric sparkles
+                for (let i = 0; i < 3; i++) {
+                    const sparkAngle = ((Date.now() / 100) + i * 120) % 360;
+                    const sparkDist = 10 + Math.sin(Date.now() / 200 + i) * 2;
+                    const sparkX = Math.cos(sparkAngle * Math.PI / 180) * sparkDist;
+                    const sparkY = Math.sin(sparkAngle * Math.PI / 180) * sparkDist;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(sparkX, sparkY);
+                    ctx.lineTo(sparkX - Math.cos(sparkAngle * Math.PI / 180) * 3, 
+                              sparkY - Math.sin(sparkAngle * Math.PI / 180) * 3);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.stroke();
+                }
+                ctx.restore();
                 break;
+                
             case 'doubleJump':
-                // Double arrow up
+                // Double arrow up with animated trails
+                ctx.save();
+                
+                // Draw arrows with gradient
+                const jumpGradient = ctx.createLinearGradient(0, 8, 0, -8);
+                jumpGradient.addColorStop(0, '#32CD32');
+                jumpGradient.addColorStop(1, '#7FFF00');
+                ctx.fillStyle = jumpGradient;
+                
+                // First arrow (filled)
                 ctx.beginPath();
                 ctx.moveTo(0, -8);
-                ctx.lineTo(-5, -3);
-                ctx.moveTo(0, -8);
-                ctx.lineTo(5, -3);
-                ctx.moveTo(0, 0);
-                ctx.lineTo(-5, 5);
-                ctx.moveTo(0, 0);
-                ctx.lineTo(5, 5);
+                ctx.lineTo(-5, -2);
+                ctx.lineTo(-2, -2);
+                ctx.lineTo(-2, 1);
+                ctx.lineTo(2, 1);
+                ctx.lineTo(2, -2);
+                ctx.lineTo(5, -2);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
+                
+                // Second arrow (filled)
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-5, 6);
+                ctx.lineTo(-2, 6);
+                ctx.lineTo(-2, 8);
+                ctx.lineTo(2, 8);
+                ctx.lineTo(2, 6);
+                ctx.lineTo(5, 6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw animated trail particles
+                const time = Date.now() / 100;
+                for (let i = 0; i < 2; i++) {
+                    const offset = (time + i * 5) % 10;
+                    ctx.fillStyle = `rgba(127, 255, 0, ${1 - offset/10})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 8 - offset, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
                 break;
+                
             case 'magnet':
-                // Magnet symbol
+                // Magnet symbol with animated magnetic field
+                ctx.save();
+                
+                // Rotate the magnet
+                ctx.rotate(Math.sin(rotationSpeed) * 0.2);
+                
+                // Draw magnet body with gradient
+                const magnetGradient = ctx.createLinearGradient(-5, -8, 5, 8);
+                magnetGradient.addColorStop(0, '#800080');
+                magnetGradient.addColorStop(1, '#DA70D6');
+                ctx.fillStyle = magnetGradient;
+                
                 ctx.beginPath();
                 ctx.moveTo(-5, -8);
                 ctx.lineTo(-5, 3);
-                ctx.lineTo(-3, 3);
-                ctx.lineTo(-3, -6);
-                ctx.lineTo(3, -6);
-                ctx.lineTo(3, 3);
                 ctx.lineTo(5, 3);
                 ctx.lineTo(5, -8);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
+                
+                // Draw poles
+                ctx.fillStyle = '#FF0000'; // North pole (red)
+                ctx.beginPath();
+                ctx.fillRect(-5, -8, 4, 4);
+                
+                ctx.fillStyle = '#0000FF'; // South pole (blue)
+                ctx.beginPath();
+                ctx.fillRect(1, -8, 4, 4);
+                
+                // Draw magnetic field lines
+                const fieldTime = Date.now() / 200;
+                for (let i = 0; i < 3; i++) {
+                    const offset = (fieldTime + i * 5) % 20;
+                    const curveFactor = 4 + Math.sin(fieldTime/2) * 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(-3, -8 - offset/2);
+                    ctx.quadraticCurveTo(-curveFactor - Math.sin(fieldTime) * 2, -12 - offset/2, 
+                                        3, -8 - offset/2);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${1 - offset/20})`;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
                 break;
+                
             case 'invincibility':
-                // Star symbol for invincibility
+                // Star symbol for invincibility with shine effect
+                ctx.save();
+                
+                // Rotate the star
+                ctx.rotate(rotationSpeed);
+                
+                // Create gradient for star
+                const starGradient = ctx.createRadialGradient(0, 0, 2, 0, 0, 10);
+                starGradient.addColorStop(0, '#FFD700'); // Gold
+                starGradient.addColorStop(1, '#FFA500'); // Orange
+                ctx.fillStyle = starGradient;
+                
+                // Draw the star
                 ctx.beginPath();
                 for (let i = 0; i < 5; i++) {
                     const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
                     const innerAngle = angle + Math.PI / 5;
-                    const outerRadius = 8;
+                    const outerRadius = 9;
                     const innerRadius = 4;
                     
                     // Draw outer point
@@ -3579,41 +4182,156 @@ function drawPowerUps() {
                     ctx.lineTo(innerX, innerY);
                 }
                 ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
+                
+                // Add shine effect
+                const shineTime = Date.now() / 300;
+                const shineAngle = shineTime % (Math.PI * 2);
+                const shineX = Math.cos(shineAngle) * 7;
+                const shineY = Math.sin(shineAngle) * 7;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.beginPath();
+                ctx.arc(shineX, shineY, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
                 break;
+                
             case 'coinMultiplier':
-                // Coin with x3 symbol
+                // Coin with x3 symbol and animated coin spin
+                ctx.save();
+                
+                // Use coin rotation for thickness illusion
+                const coinScale = Math.abs(Math.sin(rotationSpeed * 2));
+                ctx.scale(1, 0.3 + coinScale * 0.7);
+                
+                // Create gold gradient
+                const coinGradient = ctx.createRadialGradient(0, 0, 1, 0, 0, 8);
+                coinGradient.addColorStop(0, '#FFF8DC'); // Light gold
+                coinGradient.addColorStop(0.7, '#FFD700'); // Gold
+                coinGradient.addColorStop(1, '#B8860B'); // Dark gold
+                ctx.fillStyle = coinGradient;
+                
+                // Draw main coin
                 ctx.beginPath();
-                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.stroke();
-                ctx.font = '8px Arial';
+                
+                // Add rim detail
+                ctx.beginPath();
+                ctx.arc(0, 0, 7, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.stroke();
+                
+                // Add x3 text
+                ctx.fillStyle = '#800000'; // Maroon
+                ctx.font = 'bold 10px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillStyle = '#FFF';
                 ctx.fillText('x3', 0, 3);
-                break;
-            case 'gravityReduction':
-                // Floating arrows up
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 0.5;
+                ctx.strokeText('x3', 0, 3);
+                
+                // Add coin sparkle
+                const sparkleAngle1 = (rotationSpeed * 3) % (Math.PI * 2);
+                const sparkleX1 = Math.cos(sparkleAngle1) * 5;
+                const sparkleY1 = Math.sin(sparkleAngle1) * 5;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.beginPath();
-                ctx.moveTo(-5, 4);
-                ctx.lineTo(0, -4);
-                ctx.lineTo(5, 4);
-                ctx.moveTo(-3, 0);
-                ctx.lineTo(0, -8);
-                ctx.lineTo(3, 0);
-                ctx.stroke();
+                ctx.arc(sparkleX1, sparkleY1, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
                 break;
+                
+            case 'gravityReduction':
+                // Floating arrows up with gravity distortion effect
+                ctx.save();
+                
+                // Create bluish gradient
+                const gravityGradient = ctx.createLinearGradient(0, 8, 0, -8);
+                gravityGradient.addColorStop(0, '#00BFFF'); // Deep sky blue
+                gravityGradient.addColorStop(1, '#87CEFA'); // Light sky blue
+                ctx.fillStyle = gravityGradient;
+                
+                // Draw main up arrow (filled)
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(-6, 0);
+                ctx.lineTo(-3, 0);
+                ctx.lineTo(-3, 6);
+                ctx.lineTo(3, 6);
+                ctx.lineTo(3, 0);
+                ctx.lineTo(6, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Add gravity distortion waves
+                const waveTime = Date.now() / 200;
+                for (let i = 0; i < 3; i++) {
+                    const waveY = 8 - (waveTime + i * 6) % 18;
+                    const waveWidth = 8 + i * 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(-waveWidth, waveY);
+                    ctx.quadraticCurveTo(-waveWidth/2, waveY - 2, 0, waveY);
+                    ctx.quadraticCurveTo(waveWidth/2, waveY - 2, waveWidth, waveY);
+                    
+                    const alpha = 0.7 - i * 0.2;
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.lineWidth = 1 - i * 0.2;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+                break;
+                
             case 'bounce':
-                // Bouncy spring
+                // Bouncy spring with animation
+                ctx.save();
+                
+                // Spring compression animation
+                const springCompress = Math.sin(Date.now() / 150) * 2;
+                
+                // Create spring gradient
+                const springGradient = ctx.createLinearGradient(-5, 8, 5, -8);
+                springGradient.addColorStop(0, '#FF69B4'); // Hot pink
+                springGradient.addColorStop(1, '#FF1493'); // Deep pink
+                ctx.strokeStyle = springGradient;
+                ctx.lineWidth = 3;
+                
+                // Draw animated spring
                 ctx.beginPath();
                 ctx.moveTo(-5, 8);
-                ctx.lineTo(-5, 5);
-                ctx.lineTo(0, 2);
-                ctx.lineTo(-3, 0);
-                ctx.lineTo(0, -2);
-                ctx.lineTo(-3, -4);
-                ctx.lineTo(0, -6);
+                ctx.lineTo(-5, 6 - springCompress/2);
+                ctx.lineTo(0, 4 - springCompress);
+                ctx.lineTo(-4, 2 - springCompress);
+                ctx.lineTo(0, 0 - springCompress);
+                ctx.lineTo(-4, -2 - springCompress/2);
+                ctx.lineTo(0, -4);
                 ctx.lineTo(5, -8);
                 ctx.stroke();
+                
+                // Draw spring base
+                ctx.fillStyle = '#A0A0A0';
+                ctx.fillRect(-7, 6, 4, 3);
+                
+                // Draw bounce ball
+                const ballY = -8 - Math.abs(springCompress) * 3;
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath();
+                ctx.arc(5, ballY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.restore();
                 break;
         }
 
@@ -3867,6 +4585,13 @@ function update(currentTime) {
                 const coinsToAdd = coinMultiplier;
                 coinCount += coinsToAdd;
                 
+                // Trigger happiness when collecting coins (more intensity for multipliers)
+                if (coinMultiplier > 1) {
+                    triggerEmotion('excited', 0.8, 60);
+                } else {
+                    triggerEmotion('happy', 0.6, 45);
+                }
+                
                 // Create coin collection effect based on multiplier
                 for (let i = 0; i < coinsToAdd; i++) {
                     const angle = Math.random() * Math.PI * 2;
@@ -3891,6 +4616,7 @@ function update(currentTime) {
         drawPlayer();
         score = Math.floor(player.x / 100) * (devOptions.tenXScore ? 10 : 1); // Score increases based on distance
         drawScore();
+        drawActivePowerUps(); // Display any active power-ups with their timers
         if (isMobile && showMobileControls) {
             drawMobileControls();
         }
@@ -3922,53 +4648,128 @@ canvas.addEventListener('click', (e) => {
     if (gameState === 'paused' && showHighScores) {
         // Handle share overlay if active
         if (showShareOptions && selectedScoreForSharing) {
-            const buttonWidth = 300;
-            const buttonHeight = 60;
-            const buttonX = canvas.width / 2 - buttonWidth / 2;
-            const buttonSpacing = 80;
+            const shareLinks = generateShareURL(selectedScoreForSharing);
             
-            // Twitter button
-            let buttonY = 280;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Open Twitter share in new window
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                window.open(shareLinks.twitter, '_blank');
-                return;
-            }
+            // Social media grid layout
+            const iconsPerRow = 2;
+            const buttonSize = 120;
+            const buttonMargin = 20;
+            const startX = canvas.width/2 - ((buttonSize * iconsPerRow) + buttonMargin * (iconsPerRow - 1))/2;
+            const startY = 280;
+            const platformData = [
+                { name: 'Twitter', color: '#1DA1F2', link: shareLinks.twitter },
+                { name: 'Facebook', color: '#4267B2', link: shareLinks.facebook },
+                { name: 'LinkedIn', color: '#0077B5', link: shareLinks.linkedin },
+                { name: 'Reddit', color: '#FF4500', link: shareLinks.reddit },
+                { name: 'WhatsApp', color: '#25D366', link: shareLinks.whatsapp },
+                { name: 'Telegram', color: '#0088cc', link: shareLinks.telegram }
+            ];
             
-            // Facebook button
-            buttonY += buttonSpacing;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Open Facebook share in new window
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                window.open(shareLinks.facebook, '_blank');
-                return;
-            }
-            
-            // Copy text button
-            buttonY += buttonSpacing;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Copy share text to clipboard
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                copyToClipboard(shareLinks.shareText);
+            // Check if any of the social platform buttons were clicked
+            for (let i = 0; i < platformData.length; i++) {
+                const row = Math.floor(i / iconsPerRow);
+                const col = i % iconsPerRow;
                 
-                // Show feedback (temporary overlay)
-                const originalFillStyle = ctx.fillStyle;
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-                ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-                ctx.fillStyle = originalFillStyle;
+                const x1 = startX + (buttonSize + buttonMargin) * col;
+                const y1 = startY + (buttonSize + buttonMargin) * row;
+                const x2 = x1 + buttonSize;
+                const y2 = y1 + buttonSize;
                 
-                // This will flash briefly before the next animation frame redraws the buttons
+                if (x >= x1 && x <= x2 && y >= y1 && y <= y2) {
+                    // Share on the selected platform
+                    window.open(platformData[i].link, '_blank');
+                    
+                    // Show success animation
+                    const platformName = platformData[i].name;
+                    
+                    // Create a small temporary animation showing a "Shared!" message
+                    let sharedMessageTimer = 90; // 1.5 seconds
+                    const originalDraw = window.drawShareOverlay;
+                    window.drawShareOverlay = function(score) {
+                        originalDraw(score);
+                        
+                        if (sharedMessageTimer > 0) {
+                            // Draw animated success notification
+                            const alpha = Math.min(1, sharedMessageTimer > 60 ? (90 - sharedMessageTimer) / 30 : sharedMessageTimer / 60);
+                            const yOffset = 20 * (1 - Math.min(1, (90 - sharedMessageTimer) / 30));
+                            
+                            ctx.save();
+                            ctx.fillStyle = `rgba(40, 167, 69, ${alpha * 0.9})`;
+                            ctx.beginPath();
+                            ctx.roundRect(canvas.width / 2 - 150, 150 - yOffset, 300, 50, 10);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                            ctx.font = '16px "Press Start 2P"';
+                            ctx.fillText(`Shared on ${platformName}!`, canvas.width / 2, 175 - yOffset);
+                            ctx.restore();
+                            
+                            sharedMessageTimer--;
+                            
+                            if (sharedMessageTimer === 0) {
+                                window.drawShareOverlay = originalDraw;
+                            }
+                        }
+                    };
+                    
+                    return;
+                }
+            }
+            
+            // QR Code area click
+            if (x >= canvas.width - 150 && x <= canvas.width - 30 && 
+                y >= 20 && y <= 140) {
+                // Open the game URL directly
+                window.open(shareLinks.gameURL, '_blank');
                 return;
             }
             
-            // Cancel/back button
-            buttonY += buttonSpacing + 20;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
+            // Copy link button
+            const copyY = startY + Math.ceil(platformData.length / iconsPerRow) * (buttonSize + buttonMargin) + 20;
+            if (x >= canvas.width/2 - 150 && x <= canvas.width/2 + 150 && 
+                y >= copyY && y <= copyY + 50) {
+                
+                // Logic for copying text
+                copyToClipboard(shareLinks.gameURL);
+                
+                // Create a small temporary animation showing a "Copied!" message
+                let copiedMessageTimer = 90; // 1.5 seconds
+                const originalDraw = window.drawShareOverlay;
+                window.drawShareOverlay = function(score) {
+                    originalDraw(score);
+                    
+                    if (copiedMessageTimer > 0) {
+                        // Draw animated success notification
+                        const alpha = Math.min(1, copiedMessageTimer > 60 ? (90 - copiedMessageTimer) / 30 : copiedMessageTimer / 60);
+                        const yOffset = 20 * (1 - Math.min(1, (90 - copiedMessageTimer) / 30));
+                        
+                        ctx.save();
+                        ctx.fillStyle = `rgba(40, 167, 69, ${alpha * 0.9})`;
+                        ctx.beginPath();
+                        ctx.roundRect(canvas.width / 2 - 150, 150 - yOffset, 300, 50, 10);
+                        ctx.fill();
+                        
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        ctx.font = '16px "Press Start 2P"';
+                        ctx.fillText('Game link copied!', canvas.width / 2, 175 - yOffset);
+                        ctx.restore();
+                        
+                        copiedMessageTimer--;
+                        
+                        if (copiedMessageTimer === 0) {
+                            window.drawShareOverlay = originalDraw;
+                        }
+                    }
+                };
+                
+                return;
+            }
+            
+            // Close button
+            const cancelY = copyY + 70;
+            if (x >= canvas.width/2 - 100 && x <= canvas.width/2 + 100 && 
+                y >= cancelY && y <= cancelY + 50) {
+                // Close share overlay
                 showShareOptions = false;
                 selectedScoreForSharing = null;
                 return;
@@ -4042,49 +4843,85 @@ canvas.addEventListener('click', (e) => {
     
     // Handle share prompt screen
     if (gameState === 'sharePrompt') {
-        const buttonWidth = 250;
-        const buttonHeight = 50;
-        const buttonX = canvas.width / 2 - buttonWidth / 2;
-        const buttonSpacing = 70;
+        // Get share links
+        const shareLinks = generateShareURL({
+            score: score,
+            character: characters[selectedCharacter].name,
+            date: new Date().toLocaleDateString()
+        });
         
-        // Twitter button
-        let buttonY = 370;
-        if (x >= buttonX && x <= buttonX + buttonWidth &&
-            y >= buttonY && y <= buttonY + buttonHeight) {
-            // Open Twitter share in new window
-            const shareLinks = generateShareURL(selectedScoreForSharing);
-            window.open(shareLinks.twitter, '_blank');
-            return;
-        }
+        // Social media sharing grid
+        const iconsPerRow = 3;
+        const buttonSize = 90;
+        const buttonMargin = 20;
+        const startX = canvas.width/2 - ((buttonSize * iconsPerRow) + buttonMargin * (iconsPerRow - 1))/2;
+        const startY = 350;
         
-        // Facebook button
-        buttonY += buttonSpacing;
-        if (x >= buttonX && x <= buttonX + buttonWidth &&
-            y >= buttonY && y <= buttonY + buttonHeight) {
-            // Open Facebook share in new window
-            const shareLinks = generateShareURL(selectedScoreForSharing);
-            window.open(shareLinks.facebook, '_blank');
-            return;
-        }
+        const platformData = [
+            { name: 'Twitter', color: '#1DA1F2', icon: '🐦', link: shareLinks.twitter },
+            { name: 'Facebook', color: '#4267B2', icon: 'f', link: shareLinks.facebook },
+            { name: 'LinkedIn', color: '#0077B5', icon: 'in', link: shareLinks.linkedin },
+            { name: 'Reddit', color: '#FF4500', icon: '🔄', link: shareLinks.reddit },
+            { name: 'WhatsApp', color: '#25D366', icon: '💬', link: shareLinks.whatsapp },
+            { name: 'Copy Link', color: '#6c757d', icon: '🔗', link: null }
+        ];
         
-        // Copy text button
-        buttonY += buttonSpacing;
-        if (x >= buttonX && x <= buttonX + buttonWidth &&
-            y >= buttonY && y <= buttonY + buttonHeight) {
-            // Copy share text to clipboard
-            const shareLinks = generateShareURL(selectedScoreForSharing);
-            copyToClipboard(shareLinks.shareText);
+        // Check for social media button clicks
+        for (let i = 0; i < platformData.length; i++) {
+            const row = Math.floor(i / iconsPerRow);
+            const col = i % iconsPerRow;
             
-            // Show feedback (temporary overlay)
-            const originalFillStyle = ctx.fillStyle;
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-            ctx.fillStyle = originalFillStyle;
-            return;
+            const bx = startX + (buttonSize + buttonMargin) * col;
+            const by = startY + (buttonSize + buttonMargin) * row;
+            
+            if (x >= bx && x <= bx + buttonSize &&
+                y >= by && y <= by + buttonSize) {
+                
+                // If it's the copy link button
+                if (platformData[i].name === 'Copy Link') {
+                    // Copy game URL to clipboard
+                    copyToClipboard(shareLinks.gameURL);
+                    
+                    // Show feedback (temporary animation)
+                    let copyFeedbackTimer = 60; // 1 second
+                    const originalDrawSharePrompt = window.drawSharePrompt;
+                    window.drawSharePrompt = function() {
+                        originalDrawSharePrompt();
+                        
+                        if (copyFeedbackTimer > 0) {
+                            const alpha = Math.min(1, copyFeedbackTimer > 40 ? (60 - copyFeedbackTimer) / 20 : copyFeedbackTimer / 40);
+                            ctx.save();
+                            ctx.fillStyle = `rgba(40, 167, 69, ${alpha * 0.9})`;
+                            ctx.beginPath();
+                            ctx.roundRect(canvas.width/2 - 150, 280, 300, 50, 10);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                            ctx.font = '16px "Press Start 2P"';
+                            ctx.fillText('Game link copied!', canvas.width/2, 310);
+                            ctx.restore();
+                            
+                            copyFeedbackTimer--;
+                            
+                            if (copyFeedbackTimer === 0) {
+                                window.drawSharePrompt = originalDrawSharePrompt;
+                            }
+                        }
+                    };
+                } else {
+                    // Open social media share in new window
+                    window.open(platformData[i].link, '_blank');
+                }
+                return;
+            }
         }
         
         // Play again button
-        buttonY += buttonSpacing + 20;
+        const buttonWidth = 250;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const buttonY = startY + Math.ceil(platformData.length / iconsPerRow) * (buttonSize + buttonMargin) + 30;
+        
         if (x >= buttonX && x <= buttonX + buttonWidth &&
             y >= buttonY && y <= buttonY + buttonHeight) {
             // Reset game and go back to home screen
@@ -4095,7 +4932,6 @@ canvas.addEventListener('click', (e) => {
             timerStarted = false;
             spikes = [];
             coins = []; // Reset coins
-            coinCount = 0; // Reset coin counter
             player.x = platforms[0].x;
             player.y = platforms[0].y - playerHeight;
             player.dx = 0;
@@ -4287,43 +5123,85 @@ canvas.addEventListener('touchstart', (e) => {
         
         // Handle share prompt screen touch events
         if (gameState === 'sharePrompt') {
-            const buttonWidth = 250;
-            const buttonHeight = 50;
-            const buttonX = canvas.width / 2 - buttonWidth / 2;
-            const buttonSpacing = 70;
+            // Get share links
+            const shareLinks = generateShareURL({
+                score: score,
+                character: characters[selectedCharacter].name,
+                date: new Date().toLocaleDateString()
+            });
             
-            // Twitter button
-            let buttonY = 370;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Open Twitter share in new window
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                window.open(shareLinks.twitter, '_blank');
-                return;
-            }
+            // Social media sharing grid
+            const iconsPerRow = 3;
+            const buttonSize = 90;
+            const buttonMargin = 20;
+            const startX = canvas.width/2 - ((buttonSize * iconsPerRow) + buttonMargin * (iconsPerRow - 1))/2;
+            const startY = 350;
             
-            // Facebook button
-            buttonY += buttonSpacing;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Open Facebook share in new window
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                window.open(shareLinks.facebook, '_blank');
-                return;
-            }
+            const platformData = [
+                { name: 'Twitter', color: '#1DA1F2', icon: '🐦', link: shareLinks.twitter },
+                { name: 'Facebook', color: '#4267B2', icon: 'f', link: shareLinks.facebook },
+                { name: 'LinkedIn', color: '#0077B5', icon: 'in', link: shareLinks.linkedin },
+                { name: 'Reddit', color: '#FF4500', icon: '🔄', link: shareLinks.reddit },
+                { name: 'WhatsApp', color: '#25D366', icon: '💬', link: shareLinks.whatsapp },
+                { name: 'Copy Link', color: '#6c757d', icon: '🔗', link: null }
+            ];
             
-            // Copy text button
-            buttonY += buttonSpacing;
-            if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
-                // Copy share text to clipboard
-                const shareLinks = generateShareURL(selectedScoreForSharing);
-                copyToClipboard(shareLinks.shareText);
-                return;
+            // Check for social media button clicks
+            for (let i = 0; i < platformData.length; i++) {
+                const row = Math.floor(i / iconsPerRow);
+                const col = i % iconsPerRow;
+                
+                const bx = startX + (buttonSize + buttonMargin) * col;
+                const by = startY + (buttonSize + buttonMargin) * row;
+                
+                if (x >= bx && x <= bx + buttonSize &&
+                    y >= by && y <= by + buttonSize) {
+                    
+                    // If it's the copy link button
+                    if (platformData[i].name === 'Copy Link') {
+                        // Copy game URL to clipboard
+                        copyToClipboard(shareLinks.gameURL);
+                        
+                        // Show feedback (temporary animation)
+                        let copyFeedbackTimer = 60; // 1 second
+                        const originalDrawSharePrompt = window.drawSharePrompt;
+                        window.drawSharePrompt = function() {
+                            originalDrawSharePrompt();
+                            
+                            if (copyFeedbackTimer > 0) {
+                                const alpha = Math.min(1, copyFeedbackTimer > 40 ? (60 - copyFeedbackTimer) / 20 : copyFeedbackTimer / 40);
+                                ctx.save();
+                                ctx.fillStyle = `rgba(40, 167, 69, ${alpha * 0.9})`;
+                                ctx.beginPath();
+                                ctx.roundRect(canvas.width/2 - 150, 280, 300, 50, 10);
+                                ctx.fill();
+                                
+                                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                                ctx.font = '16px "Press Start 2P"';
+                                ctx.fillText('Game link copied!', canvas.width/2, 310);
+                                ctx.restore();
+                                
+                                copyFeedbackTimer--;
+                                
+                                if (copyFeedbackTimer === 0) {
+                                    window.drawSharePrompt = originalDrawSharePrompt;
+                                }
+                            }
+                        };
+                    } else {
+                        // Open social media share in new window
+                        window.open(platformData[i].link, '_blank');
+                    }
+                    return;
+                }
             }
             
             // Play again button
-            buttonY += buttonSpacing + 20;
+            const buttonWidth = 250;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonY = startY + Math.ceil(platformData.length / iconsPerRow) * (buttonSize + buttonMargin) + 30;
+            
             if (x >= buttonX && x <= buttonX + buttonWidth &&
                 y >= buttonY && y <= buttonY + buttonHeight) {
                 // Reset game and go back to home screen
@@ -4334,7 +5212,6 @@ canvas.addEventListener('touchstart', (e) => {
                 timerStarted = false;
                 spikes = [];
                 coins = []; // Reset coins
-                coinCount = 0; // Reset coin counter
                 player.x = platforms[0].x;
                 player.y = platforms[0].y - playerHeight;
                 player.dx = 0;
