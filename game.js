@@ -6,7 +6,13 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Game states
-let gameState = 'home'; // 'home', 'playing', 'paused', or 'dev'
+let gameState = 'home'; // 'home', 'playing', 'paused', 'dev', or 'sharePrompt'
+let newHighScoreAchieved = false;
+let selectedScoreForSharing = null;
+let highScoresList = [];
+let showHighScores = false;
+let showShareOptions = false;
+let showShop = false;
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let showMobileControls = isMobile;
 
@@ -62,6 +68,15 @@ const characters = [
         g.addColorStop(1, '#8B0000');
         return g;
       }
+    },
+    { color1: '#9370DB', color2: '#6A5ACD', name: 'Magic Cube', unlocked: false, price: 200,
+      gradient: (ctx, x, y, w, h) => {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#9370DB');
+        g.addColorStop(0.5, '#8A2BE2');
+        g.addColorStop(1, '#6A5ACD');
+        return g;
+      }
     }
 ];
 const VOID_THRESHOLD = 1000; // Height at which player dies
@@ -72,7 +87,11 @@ let timerStarted = false;
 let lastTime = 0;
 let hasShield = false;
 let hasSpeedBoost = false;
+let hasDoubleJump = false;
+let hasMagnet = false;
 let powerUpTimer = 0;
+let doubleJumpTimer = 0;
+let magnetTimer = 0;
 let jumpTrailParticles = [];
 let moveLeft = false;
 let moveRight = false;
@@ -83,6 +102,7 @@ let cameraX = 0;  // Camera position tracking
 let cameraY = 0;  // Vertical camera position
 let powerUps = []; // Array to store power-ups
 const CAMERA_SMOOTHNESS = 0.1;  // Adjust this value to change how smooth the camera follows (0-1)
+const MAGNET_RANGE = 150; // Range in pixels for coin magnet
 
 // Platforms array and spikes
 let platforms = [];
@@ -481,16 +501,60 @@ function movePlayer() {
 
 // Function to reset the game
 // Function to save game state
+// Function to save current score to high scores list
 function saveScore(score) {
+    // Check if this is a new high score
+    newHighScoreAchieved = score > highScore;
+    
+    // Save current high score for backward compatibility
     localStorage.setItem('highScore', score.toString());
     localStorage.setItem('coins', coinCount.toString());
     
     // Save unlocked characters
     const unlockedStates = characters.map(char => char.unlocked);
     localStorage.setItem('unlockedCharacters', JSON.stringify(unlockedStates));
+    
+    // Save to high scores list
+    let highScores = [];
+    const savedHighScores = localStorage.getItem('highScoresList');
+    
+    if (savedHighScores) {
+        highScores = JSON.parse(savedHighScores);
+    }
+    
+    // Add current score with date
+    const currentDate = new Date();
+    const dateString = `${currentDate.getMonth()+1}/${currentDate.getDate()}/${currentDate.getFullYear()}`;
+    
+    // Create score entry with character name
+    const scoreEntry = {
+        score: score,
+        date: dateString,
+        character: characters[selectedCharacter].name,
+        coins: coinCount,
+        timestamp: Date.now()
+    };
+    
+    // Add new score and sort
+    highScores.push(scoreEntry);
+    highScores.sort((a, b) => b.score - a.score);
+    
+    // Keep only top 10 scores
+    if (highScores.length > 10) {
+        highScores = highScores.slice(0, 10);
+    }
+    
+    // Update high scores list global variable for display
+    highScoresList = highScores;
+    
+    // Save back to localStorage
+    localStorage.setItem('highScoresList', JSON.stringify(highScores));
+    
+    // Return the score entry for potential sharing
+    return scoreEntry;
 }
 
-// Function to load game state
+// Function to load game state and high scores
 function loadScore() {
     const savedScore = localStorage.getItem('highScore');
     const savedCoins = localStorage.getItem('coins');
@@ -508,14 +572,117 @@ function loadScore() {
         });
     }
     
+    // Initialize global highScoresList
+    const savedHighScores = localStorage.getItem('highScoresList');
+    if (savedHighScores) {
+        highScoresList = JSON.parse(savedHighScores);
+    }
+    
     return savedScore ? parseInt(savedScore) : 0;
 }
 
-function resetGame() {
-    if (score > highScore) {
-        highScore = score;
-        saveScore(highScore);
+// Function to show score share prompt after game over
+function drawSharePrompt() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '40px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', canvas.width / 2, 100);
+    
+    // Show final score
+    ctx.font = '30px "Press Start 2P"';
+    ctx.fillText(`Score: ${score}`, canvas.width / 2, 180);
+    
+    // Add celebratory message if it's a high score
+    if (newHighScoreAchieved) {
+        ctx.fillStyle = '#FFD700'; // Gold color for high score
+        ctx.font = '25px "Press Start 2P"';
+        ctx.fillText('NEW HIGH SCORE!', canvas.width / 2, 240);
+        
+        // Animated sparkles around the text
+        const time = Date.now() / 200;
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + time;
+            const dist = 80 + Math.sin(time * 2 + i) * 10;
+            const x = canvas.width / 2 + Math.cos(angle) * dist;
+            const y = 240 + Math.sin(angle) * 30;
+            
+            const size = 3 + Math.sin(time * 3 + i * 0.7) * 2;
+            ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + Math.sin(time + i) * 0.4})`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
+    
+    // Draw sharing options
+    ctx.fillStyle = 'white';
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Share your score?', canvas.width / 2, 320);
+    
+    // Draw buttons for sharing
+    const buttonWidth = 250;
+    const buttonHeight = 50;
+    const buttonX = canvas.width / 2 - buttonWidth / 2;
+    const buttonSpacing = 70;
+    
+    // Twitter button
+    let buttonY = 370;
+    ctx.fillStyle = '#1DA1F2'; // Twitter blue
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '18px "Press Start 2P"';
+    ctx.fillText('Twitter', canvas.width / 2, buttonY + 32);
+    
+    // Facebook button
+    buttonY += buttonSpacing;
+    ctx.fillStyle = '#4267B2'; // Facebook blue
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.fillText('Facebook', canvas.width / 2, buttonY + 32);
+    
+    // Copy text button
+    buttonY += buttonSpacing;
+    ctx.fillStyle = '#6c757d'; // Gray
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.fillText('Copy Text', canvas.width / 2, buttonY + 32);
+    
+    // Play again button
+    buttonY += buttonSpacing + 20;
+    ctx.fillStyle = '#28a745'; // Green
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.fillText('Play Again', canvas.width / 2, buttonY + 32);
+}
+
+function resetGame() {
+    let scoreAtReset = score;
+    let isHighScore = scoreAtReset > highScore;
+    
+    // Handle score saving and high score checks
+    if (isHighScore) {
+        highScore = scoreAtReset;
+        const savedScoreEntry = saveScore(highScore);
+        selectedScoreForSharing = savedScoreEntry;
+        
+        // Show share prompt if it's a new high score and score is significant
+        if (scoreAtReset > 100) {
+            gameState = 'sharePrompt';
+            return; // Don't reset game yet, wait for user to choose from share prompt
+        }
+    } else {
+        // Regular save (not a high score)
+        saveScore(scoreAtReset);
+    }
+    
+    // Continue with regular reset
     platforms = [];
     generatePlatforms();
     score = 0;
@@ -531,6 +698,8 @@ function resetGame() {
     cameraX = 0;
     cameraY = 0;
     gameOver = false;
+    gameState = 'home'; // Return to home screen
+    newHighScoreAchieved = false;
 }
 
 // Function to detect collision with platforms
@@ -648,6 +817,7 @@ function createParticles() {
 }
 
 function jump() {
+    // Regular double jump logic
     if (player.jumpsLeft > 0) {
         createParticles();
         isJumping = true;
@@ -659,6 +829,33 @@ function jump() {
         } else if (player.jumpsLeft === 0) {
             player.dy = -14;  // Second jump weaker
         }
+    }
+    // Special triple jump with power-up
+    else if (hasDoubleJump && player.jumpsLeft === 0) {
+        createParticles();
+        isJumping = true;
+        
+        // Extra jump with the double jump power-up
+        player.dy = -15;  // Slightly stronger than second jump
+        
+        // Create special effect for double jump power-up use
+        for (let i = 0; i < 15; i++) {
+            const angle = (i / 15) * Math.PI * 2;
+            const speed = 3;
+            particles.push({
+                x: player.x + player.width / 2,
+                y: player.y + player.height,
+                dx: Math.cos(angle) * speed,
+                dy: Math.sin(angle) * speed,
+                radius: Math.random() * 3 + 2,
+                color: '#32CD32', // Lime green color for double jump particles
+                alpha: 1,
+                gravity: 0.1
+            });
+        }
+        
+        // Play a special sound for power-up jump
+        playSound('doubleJump');
     }
 }
 
@@ -729,11 +926,27 @@ function updatePlatforms() {
         
         if ((x - player.x) > minSafeDistance && 
             (!lastPowerUp || (x - lastPowerUp.x) > minPowerUpSpacing)) {
-            const type = Math.random() < 0.5 ? 'shield' : 'speed';
+            
+            // Randomize power-up type with different weights
+            const powerUpTypes = [
+                { type: 'shield', weight: 25 },      // 25% chance
+                { type: 'speed', weight: 25 },       // 25% chance
+                { type: 'doubleJump', weight: 25 },  // 25% chance
+                { type: 'magnet', weight: 25 }       // 25% chance
+            ];
+            
+            // Weighted random selection
+            const totalWeight = powerUpTypes.reduce((sum, powerUp) => sum + powerUp.weight, 0);
+            let random = Math.random() * totalWeight;
+            const selectedPowerUp = powerUpTypes.find(powerUp => {
+                random -= powerUp.weight;
+                return random <= 0;
+            });
+            
             powerUps.push({
                 x: x + (width / 2),
                 y: newY - 30,
-                type: type
+                type: selectedPowerUp.type
             });
         }
         
@@ -856,29 +1069,251 @@ function drawPauseMenu() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    if (showHighScores) {
+        drawHighScoresScreen();
+        return;
+    }
+
     ctx.fillStyle = 'white';
     ctx.font = '40px "Press Start 2P"';
     ctx.textAlign = 'center';
-    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 100);
 
     ctx.font = '20px "Press Start 2P"';
-    ctx.fillText('Press ESC to Resume', canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillText('Press ESC to Resume', canvas.width / 2, canvas.height / 2);
 
-    // Draw mobile controls toggle button
-    const buttonY = canvas.height / 2 + 100;
+    // Draw high scores button
+    const highScoresButtonY = canvas.height / 2 + 50;
     const buttonWidth = 300;
     const buttonHeight = 40;
     const buttonX = canvas.width / 2 - buttonWidth / 2;
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    ctx.fillRect(buttonX, highScoresButtonY, buttonWidth, buttonHeight);
 
     ctx.fillStyle = 'white';
     ctx.font = '16px "Press Start 2P"';
-    ctx.fillText('Mobile Controls: ' + (showMobileControls ? 'ON' : 'OFF'), canvas.width / 2, buttonY + 25);
+    ctx.fillText('HIGH SCORES', canvas.width / 2, highScoresButtonY + 25);
+
+    // Draw mobile controls toggle button
+    const mobileButtonY = canvas.height / 2 + 110;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(buttonX, mobileButtonY, buttonWidth, buttonHeight);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '16px "Press Start 2P"';
+    ctx.fillText('Mobile Controls: ' + (showMobileControls ? 'ON' : 'OFF'), canvas.width / 2, mobileButtonY + 25);
 }
 
-let showShop = false;
+// Global variables for sharing
+// These are already declared at the top of the file
+
+// Function to generate a share URL with score information
+function generateShareURL(score) {
+    const baseURL = window.location.href.split('?')[0]; // Remove any existing query params
+    const shareText = `I scored ${score.score} points with ${score.character} in Platform Runner! Can you beat my score?`;
+    const encodedText = encodeURIComponent(shareText);
+    
+    return {
+        twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodeURIComponent(baseURL)}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(baseURL)}&quote=${encodedText}`,
+        shareText: shareText
+    };
+}
+
+// Function to copy text to clipboard
+function copyToClipboard(text) {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    // Execute copy command
+    try {
+        document.execCommand('copy');
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+    
+    // Clean up
+    document.body.removeChild(textArea);
+}
+
+// Function to draw the high scores screen with share buttons
+function drawHighScoresScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw share overlay if active
+    if (showShareOptions && selectedScoreForSharing) {
+        drawShareOverlay(selectedScoreForSharing);
+        return;
+    }
+
+    ctx.fillStyle = 'white';
+    ctx.font = '40px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('HIGH SCORES', canvas.width / 2, 80);
+
+    // Add decorative elements
+    const timeNow = Date.now() / 500;
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const radius = 250 + Math.sin(timeNow) * 20;
+    ctx.arc(canvas.width / 2, 80, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw table header
+    const headerY = 140;
+    ctx.font = '18px "Press Start 2P"';
+    ctx.fillStyle = '#FFD700'; // Gold color for header
+    ctx.textAlign = 'left';
+    ctx.fillText('RANK', 50, headerY);
+    ctx.fillText('SCORE', 150, headerY);
+    ctx.fillText('CHARACTER', 300, headerY);
+    ctx.fillText('DATE', canvas.width - 200, headerY);
+
+    // Draw horizontal line below header
+    ctx.strokeStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.moveTo(40, headerY + 10);
+    ctx.lineTo(canvas.width - 40, headerY + 10);
+    ctx.stroke();
+
+    // Draw high scores
+    const startY = headerY + 50;
+    const rowHeight = 40;
+    
+    if (highScoresList.length === 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '16px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('No scores yet! Start playing to set records.', canvas.width / 2, startY + 50);
+    } else {
+        highScoresList.forEach((score, index) => {
+            const y = startY + index * rowHeight;
+            
+            // Skip if row would be off-screen
+            if (y > canvas.height - 100) return;
+            
+            // Highlight current player's scores
+            if (score.character === characters[selectedCharacter].name) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+                ctx.fillRect(40, y - 20, canvas.width - 80, rowHeight);
+            }
+            
+            // Draw rank with medal for top 3
+            ctx.textAlign = 'left';
+            ctx.fillStyle = index < 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][index] : 'white';
+            ctx.font = index < 3 ? 'bold 18px "Press Start 2P"' : '18px "Press Start 2P"';
+            ctx.fillText(`${index + 1}`, 50, y);
+            
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.font = '18px "Press Start 2P"';
+            ctx.fillText(`${score.score}`, 150, y);
+            
+            // Draw character
+            ctx.fillText(`${score.character}`, 300, y);
+            
+            // Draw date
+            ctx.fillText(`${score.date}`, canvas.width - 200, y);
+            
+            // Draw share button
+            const shareButtonX = canvas.width - 70;
+            ctx.fillStyle = 'rgba(59, 89, 152, 0.8)'; // Facebook blue
+            ctx.fillRect(shareButtonX, y - 18, 30, 30);
+            
+            // Draw share icon
+            ctx.fillStyle = 'white';
+            ctx.font = '16px "Arial"'; // Using Arial for the share icon
+            ctx.textAlign = 'center';
+            ctx.fillText('↗', shareButtonX + 15, y);
+        });
+    }
+
+    // Back button
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    const buttonX = canvas.width / 2 - buttonWidth / 2;
+    const buttonY = canvas.height - 80;
+
+    // Draw button with pulsing effect
+    const pulseAmount = Math.sin(Date.now() / 200) * 3;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(buttonX - pulseAmount, buttonY - pulseAmount, 
+                buttonWidth + pulseAmount * 2, buttonHeight + pulseAmount * 2);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '18px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('BACK', canvas.width / 2, buttonY + 30);
+}
+
+// Function to draw the sharing overlay
+function drawShareOverlay(score) {
+    // Semi-transparent background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Title
+    ctx.fillStyle = 'white';
+    ctx.font = '30px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('SHARE YOUR SCORE', canvas.width / 2, 80);
+    
+    // Score details
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText(`Score: ${score.score}`, canvas.width / 2, 140);
+    ctx.fillText(`Character: ${score.character}`, canvas.width / 2, 180);
+    ctx.fillText(`Date: ${score.date}`, canvas.width / 2, 220);
+    
+    const shareLinks = generateShareURL(score);
+    
+    // Draw share buttons
+    const buttonWidth = 300;
+    const buttonHeight = 60;
+    const buttonX = canvas.width / 2 - buttonWidth / 2;
+    const buttonSpacing = 80;
+    
+    // Twitter button
+    let buttonY = 280;
+    ctx.fillStyle = '#1DA1F2'; // Twitter blue
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Twitter', canvas.width / 2, buttonY + 35);
+    
+    // Facebook button
+    buttonY += buttonSpacing;
+    ctx.fillStyle = '#4267B2'; // Facebook blue
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Facebook', canvas.width / 2, buttonY + 35);
+    
+    // Copy link button
+    buttonY += buttonSpacing;
+    ctx.fillStyle = '#6c757d'; // Gray
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Copy Text', canvas.width / 2, buttonY + 35);
+    
+    // Back button
+    buttonY += buttonSpacing + 20;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText('Cancel', canvas.width / 2, buttonY + 35);
+}
 
 function drawShop() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
@@ -1110,13 +1545,118 @@ function drawMobileControls() {
 
 function drawPowerUps() {
     // Draw active power-up indicators with enhanced icons
-    if (hasShield || hasSpeedBoost) {
+    if (hasShield || hasSpeedBoost || hasDoubleJump || hasMagnet) {
         const padding = 10;
         const iconSize = 30;
         let x = canvas.width - padding - iconSize;
 
         // Draw power-up background circle with pulsing effect
         const pulseSize = Math.sin(Date.now() / 200) * 2;
+        
+        // Draw magnet power-up (if active)
+        if (hasMagnet) {
+            // Magnet indicator
+            ctx.fillStyle = 'rgba(128, 0, 128, 0.7)'; // Purple for magnet
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Magnet icon with glow
+            ctx.shadowColor = '#800080';
+            ctx.shadowBlur = 10;
+            
+            // Draw horseshoe magnet
+            ctx.beginPath();
+            ctx.moveTo(x - 10, padding + iconSize/4);
+            ctx.lineTo(x - 10, padding + 3*iconSize/4);
+            ctx.lineTo(x - 5, padding + 3*iconSize/4);
+            ctx.lineTo(x - 5, padding + iconSize/4 + 5);
+            ctx.lineTo(x + 5, padding + iconSize/4 + 5);
+            ctx.lineTo(x + 5, padding + 3*iconSize/4);
+            ctx.lineTo(x + 10, padding + 3*iconSize/4);
+            ctx.lineTo(x + 10, padding + iconSize/4);
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Add magnet attraction lines
+            for (let i = 0; i < 2; i++) {
+                const yOffset = i * 5;
+                ctx.beginPath();
+                ctx.moveTo(x - 8, padding + iconSize/4 - 2 - yOffset);
+                ctx.lineTo(x - 4, padding + iconSize/4 - 6 - yOffset);
+                ctx.strokeStyle = '#FFF';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(x + 8, padding + iconSize/4 - 2 - yOffset);
+                ctx.lineTo(x + 4, padding + iconSize/4 - 6 - yOffset);
+                ctx.stroke();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(magnetTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
+        
+        // Draw double jump power-up (if active)
+        if (hasDoubleJump) {
+            // Double jump indicator
+            ctx.fillStyle = 'rgba(50, 205, 50, 0.7)'; // Lime green
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, padding + iconSize/2, iconSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Double jump icon with glow
+            ctx.shadowColor = '#32CD32';
+            ctx.shadowBlur = 10;
+            
+            // Draw double arrow up
+            ctx.beginPath();
+            ctx.moveTo(x, padding + iconSize/4 - 2);
+            ctx.lineTo(x - 8, padding + iconSize/4 + 6);
+            ctx.lineTo(x - 3, padding + iconSize/4 + 6);
+            ctx.lineTo(x - 3, padding + iconSize/2 + 2);
+            ctx.lineTo(x - 8, padding + iconSize/2 + 2);
+            ctx.lineTo(x, padding + 3*iconSize/4);
+            ctx.lineTo(x + 8, padding + iconSize/2 + 2);
+            ctx.lineTo(x + 3, padding + iconSize/2 + 2);
+            ctx.lineTo(x + 3, padding + iconSize/4 + 6);
+            ctx.lineTo(x + 8, padding + iconSize/4 + 6);
+            ctx.closePath();
+            ctx.fillStyle = '#FFF';
+            ctx.fill();
+            
+            // Add jumping sparkles
+            for (let i = 0; i < 3; i++) {
+                const angle = (Date.now() / 300 + i * Math.PI * 2/3) % (Math.PI * 2);
+                const sparkleX = x + Math.cos(angle) * (iconSize/2 - 5);
+                const sparkleY = padding + iconSize/2 + Math.sin(angle) * (iconSize/2 - 5);
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, 2, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFF';
+                ctx.fill();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Timer
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillText(Math.ceil(doubleJumpTimer/60), x - 10, padding + iconSize + 15);
+            x -= iconSize + padding;
+        }
         
         if (hasShield) {
             // Shield indicator
@@ -1211,49 +1751,210 @@ function drawPowerUps() {
         ctx.save();
         ctx.translate(screenX, screenY);
 
-        // Glow effect
-        ctx.shadowColor = powerUp.type === 'shield' ? '#0066FF' : '#FFFF00';
-        ctx.shadowBlur = 15;
-
-        if (powerUp.type === 'shield') {
-            ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
-        } else {
-            ctx.fillStyle = 'rgba(255, 255, 0, 0.7)';
+        // Set color and glow based on power-up type
+        let glowColor, fillColor;
+        
+        switch(powerUp.type) {
+            case 'shield':
+                glowColor = '#0066FF';
+                fillColor = 'rgba(0, 100, 255, 0.7)';
+                break;
+            case 'speed':
+                glowColor = '#FFFF00';
+                fillColor = 'rgba(255, 255, 0, 0.7)';
+                break;
+            case 'doubleJump':
+                glowColor = '#32CD32';
+                fillColor = 'rgba(50, 205, 50, 0.7)';
+                break;
+            case 'magnet':
+                glowColor = '#800080';
+                fillColor = 'rgba(128, 0, 128, 0.7)';
+                break;
+            default:
+                glowColor = '#FFFFFF';
+                fillColor = 'rgba(255, 255, 255, 0.7)';
         }
+        
+        // Glow effect
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = fillColor;
 
         // Main power-up circle with pulse
         ctx.beginPath();
         ctx.arc(0, 0, Math.abs(15 + pulseSize), 0, Math.PI * 2);
         ctx.fill();
+        
+        // Draw a symbol inside based on the power-up type
+        ctx.strokeStyle = '#FFF';
+        ctx.lineWidth = 2;
+        
+        switch(powerUp.type) {
+            case 'shield':
+                // Shield symbol
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(-8, 0);
+                ctx.lineTo(0, 8);
+                ctx.lineTo(8, 0);
+                ctx.closePath();
+                ctx.stroke();
+                break;
+            case 'speed':
+                // Lightning bolt
+                ctx.beginPath();
+                ctx.moveTo(4, -8);
+                ctx.lineTo(-4, 0);
+                ctx.lineTo(2, 0);
+                ctx.lineTo(-4, 8);
+                ctx.stroke();
+                break;
+            case 'doubleJump':
+                // Double arrow up
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(-5, -3);
+                ctx.moveTo(0, -8);
+                ctx.lineTo(5, -3);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-5, 5);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(5, 5);
+                ctx.stroke();
+                break;
+            case 'magnet':
+                // Magnet symbol
+                ctx.beginPath();
+                ctx.moveTo(-5, -8);
+                ctx.lineTo(-5, 3);
+                ctx.lineTo(-3, 3);
+                ctx.lineTo(-3, -6);
+                ctx.lineTo(3, -6);
+                ctx.lineTo(3, 3);
+                ctx.lineTo(5, 3);
+                ctx.lineTo(5, -8);
+                ctx.stroke();
+                break;
+        }
 
         // Collection detection
         if (Math.abs(player.x + player.width/2 - powerUp.x) < 30 &&
             Math.abs(player.y + player.height/2 - powerUp.y) < 30) {
-            if (powerUp.type === 'shield') {
-                hasShield = true;
-                powerUpTimer = 300;
-            } else {
-                hasSpeedBoost = true;
-                player.maxSpeed = 12;
-                powerUpTimer = 300;
+            
+            switch(powerUp.type) {
+                case 'shield':
+                    hasShield = true;
+                    powerUpTimer = 300;
+                    break;
+                case 'speed':
+                    hasSpeedBoost = true;
+                    player.maxSpeed = 12;
+                    powerUpTimer = 300;
+                    break;
+                case 'doubleJump':
+                    hasDoubleJump = true;
+                    doubleJumpTimer = 300;
+                    break;
+                case 'magnet':
+                    hasMagnet = true;
+                    magnetTimer = 300;
+                    break;
             }
+            
             powerUps.splice(index, 1);
             playSound(powerUp.type);
         }
 
         ctx.restore();
     });
+    
+    // Implement coin magnet functionality
+    if (hasMagnet) {
+        coins.forEach(coin => {
+            const dx = player.x + player.width/2 - coin.x;
+            const dy = player.y + player.height/2 - coin.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < MAGNET_RANGE) {
+                // Calculate magnetism strength (stronger when closer)
+                const strength = 0.1 * (1 - distance / MAGNET_RANGE);
+                
+                // Move coin toward player
+                coin.x += dx * strength;
+                coin.y += dy * strength;
+                
+                // Create magnetic particle effects
+                if (Math.random() < 0.1) {
+                    const angle = Math.atan2(dy, dx);
+                    const distance = Math.random() * 30 + 20;
+                    const particleX = coin.x + Math.cos(angle) * distance;
+                    const particleY = coin.y + Math.sin(angle) * distance;
+                    
+                    particles.push({
+                        x: particleX,
+                        y: particleY,
+                        dx: -Math.cos(angle) * 2,
+                        dy: -Math.sin(angle) * 2,
+                        radius: Math.random() * 2 + 1,
+                        color: '#800080', // Purple for magnet effect
+                        alpha: 1,
+                        life: 0.8,
+                        gravity: 0
+                    });
+                }
+            }
+        });
+    }
 }
 
 function playSound(type) {
     const audio = new Audio();
     audio.volume = 0.2;
-    if (type === 'shield') {
-        audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
-    } else {
-        audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+    
+    // Different sound effects for different power-ups and actions
+    switch(type) {
+        case 'shield':
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            break;
+        case 'speed':
+            // Higher pitched sound for speed boost
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.playbackRate = 1.5;
+            break;
+        case 'doubleJump':
+            // Unique sound for double jump
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.playbackRate = 1.2;
+            break;
+        case 'magnet':
+            // Lower pitched sound for magnet
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.playbackRate = 0.8;
+            break;
+        case 'coin':
+            // Coin collection sound
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.volume = 0.15;
+            break;
+        case 'jump':
+            // Jump sound
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.volume = 0.1;
+            break;
+        case 'land':
+            // Landing sound
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
+            audio.volume = 0.1;
+            break;
+        default:
+            audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...';
     }
-    audio.play();
+    
+    // Try to play the sound
+    audio.play().catch(error => {
+        console.log("Audio playback error:", error);
+    });
 }
 
 function update(currentTime) {
@@ -1269,12 +1970,29 @@ function update(currentTime) {
         lastTime = currentTime;
     }
 
+    // Update power-up timers
     if (powerUpTimer > 0) {
         powerUpTimer--;
         if (powerUpTimer === 0) {
             hasShield = false;
             hasSpeedBoost = false;
             player.maxSpeed = 8;
+        }
+    }
+    
+    // Update double jump timer
+    if (doubleJumpTimer > 0) {
+        doubleJumpTimer--;
+        if (doubleJumpTimer === 0) {
+            hasDoubleJump = false;
+        }
+    }
+    
+    // Update magnet timer
+    if (magnetTimer > 0) {
+        magnetTimer--;
+        if (magnetTimer === 0) {
+            hasMagnet = false;
         }
     }
 
@@ -1284,6 +2002,8 @@ function update(currentTime) {
         drawPauseMenu();
     } else if (gameState === 'dev') {
         drawDevMenu();
+    } else if (gameState === 'sharePrompt') {
+        drawSharePrompt();
     } else {
         movePlayer();
         detectCollision();
@@ -1341,11 +2061,205 @@ function unlockCharacter(index) {
 }
 
 canvas.addEventListener('click', (e) => {
-    if (gameState === 'home') {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
+    // Handle high scores screen
+    if (gameState === 'paused' && showHighScores) {
+        // Handle share overlay if active
+        if (showShareOptions && selectedScoreForSharing) {
+            const buttonWidth = 300;
+            const buttonHeight = 60;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonSpacing = 80;
+            
+            // Twitter button
+            let buttonY = 280;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Open Twitter share in new window
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.twitter, '_blank');
+                return;
+            }
+            
+            // Facebook button
+            buttonY += buttonSpacing;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Open Facebook share in new window
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.facebook, '_blank');
+                return;
+            }
+            
+            // Copy text button
+            buttonY += buttonSpacing;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Copy share text to clipboard
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                copyToClipboard(shareLinks.shareText);
+                
+                // Show feedback (temporary overlay)
+                const originalFillStyle = ctx.fillStyle;
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+                ctx.fillStyle = originalFillStyle;
+                
+                // This will flash briefly before the next animation frame redraws the buttons
+                return;
+            }
+            
+            // Cancel/back button
+            buttonY += buttonSpacing + 20;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                showShareOptions = false;
+                selectedScoreForSharing = null;
+                return;
+            }
+            
+            return;
+        }
+        
+        // Check if any share button was clicked in the high scores list
+        if (highScoresList.length > 0) {
+            const startY = 140 + 50; // headerY + 50
+            const rowHeight = 40;
+            
+            highScoresList.forEach((score, index) => {
+                const y = startY + index * rowHeight;
+                
+                // Skip if row would be off-screen
+                if (y > canvas.height - 100) return;
+                
+                // Check if share button clicked
+                const shareButtonX = canvas.width - 70;
+                if (x >= shareButtonX && x <= shareButtonX + 30 &&
+                    y - 18 <= y && y <= y - 18 + 30) {
+                    selectedScoreForSharing = score;
+                    showShareOptions = true;
+                    return;
+                }
+            });
+        }
+        
+        // Check if back button was clicked
+        const buttonWidth = 200;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const buttonY = canvas.height - 80;
+        
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            showHighScores = false;
+            showShareOptions = false;
+            selectedScoreForSharing = null;
+        }
+        return;
+    }
+    
+    // Handle pause menu clicks
+    if (gameState === 'paused' && !showHighScores) {
+        // Check if high scores button was clicked
+        const buttonWidth = 300;
+        const buttonHeight = 40;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const highScoresButtonY = canvas.height / 2 + 50;
+        const mobileButtonY = canvas.height / 2 + 110;
+        
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= highScoresButtonY && y <= highScoresButtonY + buttonHeight) {
+            showHighScores = true;
+            return;
+        }
+        
+        // Mobile controls toggle
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= mobileButtonY && y <= mobileButtonY + buttonHeight) {
+            showMobileControls = !showMobileControls;
+            isMobile = showMobileControls;
+            return;
+        }
+        
+        return;
+    }
+    
+    // Handle share prompt screen
+    if (gameState === 'sharePrompt') {
+        const buttonWidth = 250;
+        const buttonHeight = 50;
+        const buttonX = canvas.width / 2 - buttonWidth / 2;
+        const buttonSpacing = 70;
+        
+        // Twitter button
+        let buttonY = 370;
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            // Open Twitter share in new window
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            window.open(shareLinks.twitter, '_blank');
+            return;
+        }
+        
+        // Facebook button
+        buttonY += buttonSpacing;
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            // Open Facebook share in new window
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            window.open(shareLinks.facebook, '_blank');
+            return;
+        }
+        
+        // Copy text button
+        buttonY += buttonSpacing;
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            // Copy share text to clipboard
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            copyToClipboard(shareLinks.shareText);
+            
+            // Show feedback (temporary overlay)
+            const originalFillStyle = ctx.fillStyle;
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+            ctx.fillStyle = originalFillStyle;
+            return;
+        }
+        
+        // Play again button
+        buttonY += buttonSpacing + 20;
+        if (x >= buttonX && x <= buttonX + buttonWidth &&
+            y >= buttonY && y <= buttonY + buttonHeight) {
+            // Reset game and go back to home screen
+            platforms = [];
+            generatePlatforms();
+            score = 0;
+            gameTimer = 0;
+            timerStarted = false;
+            spikes = [];
+            coins = []; // Reset coins
+            coinCount = 0; // Reset coin counter
+            player.x = platforms[0].x;
+            player.y = platforms[0].y - playerHeight;
+            player.dx = 0;
+            player.dy = 0;
+            cameraX = 0;
+            cameraY = 0;
+            gameOver = false;
+            gameState = 'home'; // Return to home screen
+            newHighScoreAchieved = false;
+            return;
+        }
+        
+        return;
+    }
+    
+    // Handle home screen
+    if (gameState === 'home') {
         if (showShop) {
             // Back button
             if (x >= 20 && x <= 120 && y >= 20 && y <= 60) {
@@ -1397,9 +2311,11 @@ canvas.addEventListener('click', (e) => {
         }
 
         // Check if character was clicked
+        const titleScreenChars = characters.filter(char => !char.inShop || (char.inShop && char.unlocked));
         const characterSpacing = 120;
-        const startX = canvas.width / 2 - (characters.length * characterSpacing) / 2;
-        characters.forEach((_, index) => {
+        const startX = canvas.width / 2 - (titleScreenChars.length * characterSpacing) / 2;
+        
+        titleScreenChars.forEach((char, index) => {
             const charX = startX + index * characterSpacing;
             const charY = canvas.height / 2 + 30;
             if (x >= charX - 35 && x <= charX + 35 &&
@@ -1416,23 +2332,243 @@ canvas.addEventListener('touchstart', (e) => {
         const rect = canvas.getBoundingClientRect();
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
-
-        if (gameState === 'home' || gameState === 'paused') {
-            const buttonY = canvas.height / 2 + 100;
+        
+        // Handle share prompt screen touch events
+        if (gameState === 'sharePrompt') {
+            const buttonWidth = 250;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonSpacing = 70;
+            
+            // Twitter button
+            let buttonY = 370;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Open Twitter share in new window
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.twitter, '_blank');
+                return;
+            }
+            
+            // Facebook button
+            buttonY += buttonSpacing;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Open Facebook share in new window
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.facebook, '_blank');
+                return;
+            }
+            
+            // Copy text button
+            buttonY += buttonSpacing;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Copy share text to clipboard
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                copyToClipboard(shareLinks.shareText);
+                return;
+            }
+            
+            // Play again button
+            buttonY += buttonSpacing + 20;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                // Reset game and go back to home screen
+                platforms = [];
+                generatePlatforms();
+                score = 0;
+                gameTimer = 0;
+                timerStarted = false;
+                spikes = [];
+                coins = []; // Reset coins
+                coinCount = 0; // Reset coin counter
+                player.x = platforms[0].x;
+                player.y = platforms[0].y - playerHeight;
+                player.dx = 0;
+                player.dy = 0;
+                cameraX = 0;
+                cameraY = 0;
+                gameOver = false;
+                gameState = 'home'; // Return to home screen
+                newHighScoreAchieved = false;
+                return;
+            }
+            
+            return;
+        }
+        
+        // Handle high scores screen touch events
+        if (gameState === 'paused' && showHighScores) {
+            // Handle share overlay if active
+            if (showShareOptions && selectedScoreForSharing) {
+                const buttonWidth = 300;
+                const buttonHeight = 60;
+                const buttonX = canvas.width / 2 - buttonWidth / 2;
+                const buttonSpacing = 80;
+                
+                // Twitter button
+                let buttonY = 280;
+                if (x >= buttonX && x <= buttonX + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    // Open Twitter share in new window
+                    const shareLinks = generateShareURL(selectedScoreForSharing);
+                    window.open(shareLinks.twitter, '_blank');
+                    return;
+                }
+                
+                // Facebook button
+                buttonY += buttonSpacing;
+                if (x >= buttonX && x <= buttonX + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    // Open Facebook share in new window
+                    const shareLinks = generateShareURL(selectedScoreForSharing);
+                    window.open(shareLinks.facebook, '_blank');
+                    return;
+                }
+                
+                // Copy text button
+                buttonY += buttonSpacing;
+                if (x >= buttonX && x <= buttonX + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    // Copy share text to clipboard
+                    const shareLinks = generateShareURL(selectedScoreForSharing);
+                    copyToClipboard(shareLinks.shareText);
+                    return;
+                }
+                
+                // Cancel/back button
+                buttonY += buttonSpacing + 20;
+                if (x >= buttonX && x <= buttonX + buttonWidth &&
+                    y >= buttonY && y <= buttonY + buttonHeight) {
+                    showShareOptions = false;
+                    selectedScoreForSharing = null;
+                    return;
+                }
+                
+                return;
+            }
+            
+            // Check if any share button was clicked in the high scores list
+            if (highScoresList.length > 0) {
+                const startY = 140 + 50; // headerY + 50
+                const rowHeight = 40;
+                
+                highScoresList.forEach((score, index) => {
+                    const y = startY + index * rowHeight;
+                    
+                    // Skip if row would be off-screen
+                    if (y > canvas.height - 100) return;
+                    
+                    // Check if share button clicked
+                    const shareButtonX = canvas.width - 70;
+                    if (x >= shareButtonX && x <= shareButtonX + 30 &&
+                        y - 18 <= y && y <= y - 18 + 30) {
+                        selectedScoreForSharing = score;
+                        showShareOptions = true;
+                        return;
+                    }
+                });
+            }
+            
+            // Check if back button was clicked
+            const buttonWidth = 200;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonY = canvas.height - 80;
+            
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                showHighScores = false;
+                showShareOptions = false;
+                selectedScoreForSharing = null;
+            }
+            return;
+        }
+        
+        // Handle pause menu touch events
+        if (gameState === 'paused' && !showHighScores) {
             const buttonWidth = 300;
             const buttonHeight = 40;
             const buttonX = canvas.width / 2 - buttonWidth / 2;
-
+            const highScoresButtonY = canvas.height / 2 + 50;
+            const mobileButtonY = canvas.height / 2 + 110;
+            
             if (x >= buttonX && x <= buttonX + buttonWidth &&
-                y >= buttonY && y <= buttonY + buttonHeight) {
+                y >= highScoresButtonY && y <= highScoresButtonY + buttonHeight) {
+                showHighScores = true;
+                return;
+            }
+            
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= mobileButtonY && y <= mobileButtonY + buttonHeight) {
                 showMobileControls = !showMobileControls;
                 isMobile = showMobileControls;
                 return;
             }
+            
+            // Resume game on touch elsewhere
+            gameState = 'playing';
+            return;
+        }
 
-            if (gameState === 'home') {
-                gameState = 'playing';
+        if (gameState === 'home') {
+            // Handle home screen touch events
+            if (showShop) {
+                // Back button
+                if (x >= 20 && x <= 120 && y >= 20 && y <= 60) {
+                    showShop = false;
+                    return;
+                }
+                
+                // Shop touch handling
+                const gridSize = 4;
+                const itemWidth = 150;
+                const itemHeight = 150;
+                const padding = 20;
+                const startX = (canvas.width - (gridSize * (itemWidth + padding))) / 2;
+                const startY = 200;
+                
+                characters.forEach((char, index) => {
+                    const row = Math.floor(index / gridSize);
+                    const col = index % gridSize;
+                    const itemX = startX + col * (itemWidth + padding);
+                    const itemY = startY + row * (itemHeight + padding);
+                    
+                    if (x >= itemX && x <= itemX + itemWidth &&
+                        y >= itemY && y <= itemY + itemHeight) {
+                        if (!char.unlocked && coinCount >= char.price) {
+                            unlockCharacter(index);
+                        } else if (char.unlocked) {
+                            selectedCharacter = index;
+                            showShop = false;
+                        }
+                    }
+                });
+                return;
             }
+            
+            // Check if start button was clicked
+            const buttonWidth = 200;
+            const buttonHeight = 50;
+            const buttonX = canvas.width / 2 - buttonWidth / 2;
+            const buttonY = canvas.height - 120;
+            
+            const shopButtonY = buttonY - 70;
+            if (x >= buttonX && x <= buttonX + buttonWidth &&
+                y >= buttonY && y <= buttonY + buttonHeight) {
+                gameState = 'playing';
+                timerStarted = true;
+                return;
+            } else if (x >= buttonX && x <= buttonX + buttonWidth &&
+                       y >= shopButtonY && y <= shopButtonY + buttonHeight) {
+                showShop = true;
+                return;
+            }
+            
+            // Start the game on touch elsewhere
+            gameState = 'playing';
+            timerStarted = true;
             return;
         }
 
@@ -1543,13 +2679,131 @@ document.addEventListener('keydown', (e) => {
         }
     }
 
+    // Handle share prompt screen with keyboard
+    if (gameState === 'sharePrompt') {
+        if (e.key === 'Escape' || e.key === 'Backspace') {
+            // Reset and go to home screen
+            platforms = [];
+            generatePlatforms();
+            score = 0;
+            gameTimer = 0;
+            timerStarted = false;
+            spikes = [];
+            coins = []; // Reset coins
+            coinCount = 0; // Reset coin counter
+            player.x = platforms[0].x;
+            player.y = platforms[0].y - playerHeight;
+            player.dx = 0;
+            player.dy = 0;
+            cameraX = 0;
+            cameraY = 0;
+            gameOver = false;
+            gameState = 'home'; // Return to home screen
+            newHighScoreAchieved = false;
+            return;
+        }
+        
+        // Number keys for different share options
+        if (e.key === '1' || e.key === 't') { // Twitter
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            window.open(shareLinks.twitter, '_blank');
+            return;
+        } else if (e.key === '2' || e.key === 'f') { // Facebook
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            window.open(shareLinks.facebook, '_blank');
+            return;
+        } else if (e.key === '3' || e.key === 'c') { // Copy to clipboard
+            const shareLinks = generateShareURL(selectedScoreForSharing);
+            copyToClipboard(shareLinks.shareText);
+            return;
+        } else if (e.key === '4' || e.key === 'p' || e.key === 'Enter') { // Play again
+            // Reset and go to home screen
+            platforms = [];
+            generatePlatforms();
+            score = 0;
+            gameTimer = 0;
+            timerStarted = false;
+            spikes = [];
+            coins = []; // Reset coins
+            coinCount = 0; // Reset coin counter
+            player.x = platforms[0].x;
+            player.y = platforms[0].y - playerHeight;
+            player.dx = 0;
+            player.dy = 0;
+            cameraX = 0;
+            cameraY = 0;
+            gameOver = false;
+            gameState = 'home'; // Return to home screen
+            newHighScoreAchieved = false;
+        }
+        return;
+    }
+    
     if (e.key === 'Escape') {
-        if (gameState === 'playing') {
+        if (gameState === 'paused' && showHighScores) {
+            showHighScores = false; // Exit high scores screen
+        } else if (gameState === 'playing') {
             gameState = 'paused';
         } else if (gameState === 'paused') {
             gameState = 'playing';
         }
         return;
+    }
+    
+    // High scores screen navigation
+    if (gameState === 'paused' && showHighScores) {
+        // Handle share overlay keyboard controls
+        if (showShareOptions && selectedScoreForSharing) {
+            if (e.key === 'Escape' || e.key === 'Backspace') {
+                showShareOptions = false;
+                selectedScoreForSharing = null;
+                return;
+            }
+            
+            // Number keys for different share options
+            if (e.key === '1') {
+                // Twitter
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.twitter, '_blank');
+                return;
+            } else if (e.key === '2') {
+                // Facebook
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                window.open(shareLinks.facebook, '_blank');
+                return;
+            } else if (e.key === '3' || e.key === 'c') {
+                // Copy to clipboard
+                const shareLinks = generateShareURL(selectedScoreForSharing);
+                copyToClipboard(shareLinks.shareText);
+                return;
+            }
+            
+            return;
+        }
+        
+        // Exit high scores screen
+        if (e.key === 'Backspace' || e.key === 'Escape') {
+            showHighScores = false;
+            showShareOptions = false;
+            selectedScoreForSharing = null;
+        }
+        
+        // Allow sharing options with keyboard for selected scores
+        if (highScoresList.length > 0 && e.key === 's') {
+            // Share the top score by default
+            selectedScoreForSharing = highScoresList[0];
+            showShareOptions = true;
+        }
+        
+        return;
+    }
+    
+    // Handle key navigation in pause menu
+    if (gameState === 'paused' && !showHighScores) {
+        if (e.key === 'h' || e.key === 'H') {
+            showHighScores = true;
+            return;
+        }
     }
 
     if (gameState === 'playing') {
