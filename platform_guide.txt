@@ -19,3 +19,8 @@ Platform Types Guide
    - Temporarily increases player's maximum speed
    - Speed boost lasts for 1 second
    - Perfect for crossing large gaps
+
+5. Breaking Platform (Grey)
+   - Breaks shortly after landing on it
+   - Very rare (5% spawn chance)
+   - Requires quick thinking and movement
